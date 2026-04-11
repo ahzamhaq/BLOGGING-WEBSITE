@@ -1,0 +1,168 @@
+.section {
+  padding: 5rem 1.5rem;
+}
+.container { max-width: 1280px; margin: 0 auto; }
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.title { font-size: clamp(1.5rem, 3vw, 2.25rem); }
+
+/* Grid layout */
+.grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1.25rem;
+}
+.sideCards {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Card base */
+.card {
+  display: block;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  overflow: hidden;
+  text-decoration: none;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+.card:hover {
+  border-color: var(--border-default);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+  transform: translateY(-4px);
+}
+
+/* Large card image placeholder */
+.cardImagePlaceholder {
+  height: 220px;
+  position: relative;
+  overflow: hidden;
+}
+.cardImageAccent {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  opacity: 0.8;
+}
+
+/* Small card accent bar */
+.cardSmall { display: flex; flex: 1; }
+.cardSmallAccent {
+  width: 4px;
+  flex-shrink: 0;
+  background: var(--brand-500);
+  border-radius: 0;
+}
+
+.cardBody {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+/* Tag */
+.tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: 100px;
+  border: 1px solid;
+  width: fit-content;
+}
+
+/* Card title */
+.cardTitle {
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text-primary);
+  transition: color 0.15s;
+}
+.card:hover .cardTitle { color: var(--brand-400); }
+.cardTitleSmall { font-size: 0.975rem; }
+
+.cardExcerpt {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Meta */
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+.authorRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.authorName {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.metaRight {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.bookmarkBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.bookmarkBtn:hover {
+  background: var(--bg-elevated);
+  color: var(--brand-400);
+}
+
+@media (max-width: 900px) {
+  .grid { grid-template-columns: 1fr; }
+  .sideCards { display: grid; grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .sideCards { grid-template-columns: 1fr; }
+}

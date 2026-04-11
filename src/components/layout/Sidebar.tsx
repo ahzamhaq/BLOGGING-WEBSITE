@@ -1,0 +1,223 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
+import { useState, useRef, useEffect } from "react";
+import {
+  Feather, Home, Compass, Users, Bookmark, FileText,
+  Bell, PenLine, Search, Menu, X,
+  LayoutDashboard, User as UserIcon, Settings, LogOut, ChevronUp
+} from "lucide-react";
+import { ThemePicker } from "@/components/layout/ThemePicker";
+import styles from "./Sidebar.module.css";
+
+// Small fixed list of communities shown in the sidebar — matches the
+// reference design. When the DB lands these become a fetch.
+const COMMUNITIES = [
+  { slug: "tech-writers",   name: "Tech Writers",    emoji: "💻" },
+  { slug: "design-lab",     name: "Design Lab",      emoji: "🎨" },
+  { slug: "startup-stories",name: "Startup Stories", emoji: "🚀" },
+  { slug: "deep-reads",     name: "Deep Reads",      emoji: "📚" },
+];
+
+interface NavLink {
+  href: string;
+  label: string;
+  icon: typeof Home;
+  count?: number;
+}
+
+const MAIN_LINKS: NavLink[] = [
+  { href: "/",             label: "Home",      icon: Home     },
+  { href: "/explore",      label: "Discover",  icon: Compass  },
+  { href: "/community",    label: "Rooms",     icon: Users    },
+  { href: "/reading-list", label: "Bookmarks", icon: Bookmark },
+  { href: "/dashboard",    label: "Drafts",    icon: FileText },
+];
+
+export function Sidebar({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router   = useRouter();
+  const { data: session } = useSession();
+  const user = session?.user;
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [menuOpen,   setMenuOpen]   = useState(false);
+  const [search,     setSearch]     = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Close the mobile drawer on route change
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  function isActive(href: string) {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(href + "/");
+  }
+
+  function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" && search.trim()) {
+      router.push(`/explore?q=${encodeURIComponent(search.trim())}`);
+    }
+  }
+
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "WS";
+  const handle = user?.email?.split("@")[0];
+
+  return (
+    <>
+      {/* Backdrop (mobile only) */}
+      {mobileOpen && (
+        <div className={styles.mobileBackdrop} onClick={() => setMobileOpen(false)} />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`${styles.sidebar} ${mobileOpen ? styles.open : ""}`}
+        aria-label="Main navigation"
+      >
+        <Link href="/" className={styles.logo}>
+          <Feather size={20} strokeWidth={2.2} />
+          <span>WriteSpace</span>
+        </Link>
+
+        <nav className={styles.nav}>
+          {MAIN_LINKS.map(({ href, label, icon: Icon, count }) => (
+            <Link
+              key={href}
+              href={href}
+              className={`${styles.navItem} ${isActive(href) ? styles.navItemActive : ""}`}
+              aria-current={isActive(href) ? "page" : undefined}
+            >
+              <Icon size={16} />
+              {label}
+              {typeof count === "number" && <span className={styles.navCount}>{count}</span>}
+            </Link>
+          ))}
+        </nav>
+
+        <div className={styles.sectionLabel}>Communities</div>
+        <div className={styles.communitiesList}>
+          {COMMUNITIES.map((c) => (
+            <Link key={c.slug} href={`/community/${c.slug}`} className={styles.communityItem}>
+              <span className={styles.communityEmoji}>{c.emoji}</span>
+              <span className={styles.communityName}>{c.name}</span>
+            </Link>
+          ))}
+          <Link href="/community" className={styles.communityItem}>
+            <span className={styles.communityEmoji}>＋</span>
+            <span className={styles.communityName}>Explore more</span>
+          </Link>
+        </div>
+
+        {/* Footer: write CTA + user */}
+        <div className={styles.footer}>
+          {user ? (
+            <>
+              <Link href="/editor/new" className={styles.writeBtn}>
+                <PenLine size={15} />
+                Write a story
+              </Link>
+              <div ref={menuRef} style={{ position: "relative" }}>
+                <button
+                  className={styles.userRow}
+                  onClick={() => setMenuOpen((v) => !v)}
+                  aria-expanded={menuOpen}
+                  aria-haspopup="true"
+                >
+                  <span className="avatar avatar-sm">{initials}</span>
+                  <div className={styles.userInfo}>
+                    <div className={styles.userName}>{user.name ?? "Writer"}</div>
+                    <div className={styles.userHandle}>@{handle ?? "you"}</div>
+                  </div>
+                  <ChevronUp size={14} style={{ color: "var(--text-muted)" }} />
+                </button>
+                {menuOpen && (
+                  <div className={styles.userMenu} role="menu">
+                    <Link href={`/profile/${handle}`} className={styles.userMenuItem} role="menuitem">
+                      <UserIcon size={14} /> Profile
+                    </Link>
+                    <Link href="/dashboard" className={styles.userMenuItem} role="menuitem">
+                      <LayoutDashboard size={14} /> Dashboard
+                    </Link>
+                    <Link href="/settings" className={styles.userMenuItem} role="menuitem">
+                      <Settings size={14} /> Settings
+                    </Link>
+                    <div className={styles.userMenuDivider} />
+                    <button
+                      className={`${styles.userMenuItem} ${styles.userMenuDanger}`}
+                      onClick={() => signOut({ callbackUrl: "/" })}
+                    >
+                      <LogOut size={14} /> Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className={styles.guestActions}>
+              <Link href="/auth/signup" className={styles.writeBtn}>
+                <PenLine size={15} />
+                Get Started
+              </Link>
+              <Link href="/auth/signin" className="btn btn-secondary btn-sm" style={{ width: "100%", justifyContent: "center" }}>
+                Sign In
+              </Link>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* Shell wrapping the entire right column */}
+      <div className={styles.shell}>
+        <header className={styles.topBar}>
+          <button
+            className={styles.mobileOpen}
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open navigation"
+          >
+            <Menu size={18} />
+          </button>
+
+          <div className={styles.topSearch} role="search">
+            <Search size={15} />
+            <input
+              type="search"
+              className={styles.topSearchInput}
+              placeholder="Search articles, writers, topics…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={onSearchKey}
+              aria-label="Search"
+            />
+          </div>
+
+          <div className={styles.topActions}>
+            <ThemePicker />
+            {user && (
+              <button className={styles.iconBtn} aria-label="Notifications">
+                <Bell size={16} />
+                <span className={styles.notifDot} aria-hidden />
+              </button>
+            )}
+          </div>
+        </header>
+
+        <div className={styles.shellInner}>{children}</div>
+      </div>
+    </>
+  );
+}
