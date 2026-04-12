@@ -18,11 +18,20 @@ export default function ForgotPasswordPage() {
       return;
     }
     setLoading(true);
-    // TODO: wire to real API
-    await new Promise((r) => setTimeout(r, 900));
-    setLoading(false);
-    setSent(true);
-    toast.success("If that email exists, a reset link is on its way.");
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) throw new Error();
+      setSent(true);
+      toast.success("If that email exists, a reset link is on its way.");
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

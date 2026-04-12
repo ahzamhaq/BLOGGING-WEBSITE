@@ -22,15 +22,30 @@ export default function SignUpPage() {
     if (password.length < 6) { toast.error("Password must be at least 6 characters."); return; }
 
     setLoading(true);
-    const res = await signIn("credentials", { email, password, redirect: false });
-    setLoading(false);
+    try {
+      // Step 1: create the account
+      const reg = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+      const data = await reg.json();
+      if (!reg.ok) { toast.error(data.error ?? "Registration failed."); return; }
 
-    if (res?.ok) {
-      toast.success(`Welcome to WriteSpace, ${name.split(" ")[0]}!`);
-      router.push("/");
-      router.refresh();
-    } else {
+      // Step 2: sign in automatically
+      const res = await signIn("credentials", { email, password, redirect: false });
+      if (res?.ok) {
+        toast.success(`Welcome to WriteSpace, ${name.split(" ")[0]}!`);
+        router.push("/");
+        router.refresh();
+      } else {
+        toast.success("Account created! Please sign in.");
+        router.push("/auth/signin");
+      }
+    } catch {
       toast.error("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
   }
 

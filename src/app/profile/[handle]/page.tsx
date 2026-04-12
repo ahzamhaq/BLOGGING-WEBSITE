@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FileText, TrendingUp, Users, Settings, Star, Award } from "lucide-react";
 import styles from "./profile.module.css";
+import { FollowButton } from "@/components/FollowButton";
 
 // Mock profile data — replace with DB query in Phase 1
 const PROFILES: Record<string, {
@@ -79,7 +80,10 @@ export default async function ProfilePage({ params }: Props) {
                 <p className={styles.profileHandle}>@{profile.handle}</p>
               </div>
               <div className={styles.profileActions}>
-                <button className="btn btn-primary">Follow</button>
+                <FollowButton
+                  handle={profile.handle}
+                  initialFollowers={profile.followers}
+                />
                 <Link href="/settings" className="btn btn-ghost btn-sm" aria-label="Settings">
                   <Settings size={16} />
                 </Link>

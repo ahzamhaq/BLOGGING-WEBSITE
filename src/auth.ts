@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/db";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -15,23 +17,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // TODO: Replace with real DB lookup + bcrypt in Phase 1 DB setup
-        // Demo: any email + password length >= 6 works
-        if (
-          credentials?.email &&
-          credentials?.password &&
-          (credentials.password as string).length >= 6
-        ) {
-          const email = credentials.email as string;
-          const name  = email.split("@")[0];
-          return {
-            id:    "demo-" + email,
-            name:  name.charAt(0).toUpperCase() + name.slice(1),
-            email,
-            image: null,
-          };
+        const email    = credentials?.email    as string | undefined;
+        const password = credentials?.password as string | undefined;
+
+        if (!email || !password || password.length < 6) return null;
+
+        try {
+          const user = await prisma.user.findUnique({ where: { email } });
+          if (!user || !user.password) return null;
+
+          const valid = await bcrypt.compare(password, user.password);
+          if (!valid) return null;
+
+          return { id: user.id, name: user.name ?? user.handle, email: user.email, image: user.image };
+        } catch {
+          return null;
         }
-        return null;
       },
     }),
   ],

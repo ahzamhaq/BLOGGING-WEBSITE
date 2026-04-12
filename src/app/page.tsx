@@ -4,6 +4,8 @@ import {
   ArrowRight, Sparkles, Check, TrendingUp, Crown
 } from "lucide-react";
 import styles from "./home.module.css";
+import { auth } from "@/auth";
+import { LandingPage } from "@/components/home/LandingPage";
 
 export const metadata: Metadata = {
   title: "WriteSpace — Where Great Writing Lives",
@@ -91,7 +93,10 @@ const TOPICS = [
   "Productivity","Psychology","Culture","Engineering",
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await auth();
+  if (!session) return <LandingPage />;
+
   return (
     <div className={styles.page}>
       {/* Breadcrumb */}

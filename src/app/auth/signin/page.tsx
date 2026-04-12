@@ -38,10 +38,6 @@ export default function SignInPage() {
   }
 
   async function handleGoogle() {
-    if (!process.env.NEXT_PUBLIC_GOOGLE_CONFIGURED) {
-      toast.error("Google sign-in is not configured yet. Please use email & password.");
-      return;
-    }
     setLoading(true);
     await signIn("google", { callbackUrl: "/" });
   }

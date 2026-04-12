@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Clock, Bookmark, Twitter, Link2, MessageCircle } from "lucide-react";
+import { Clock, Bookmark, Twitter, Link2 } from "lucide-react";
 import Link from "next/link";
 import styles from "./article.module.css";
 import { ArticleActions } from "./ArticleActions";
+import { Comments } from "./Comments";
+import { FollowButton } from "@/components/FollowButton";
+import { TextToSpeech } from "@/components/article/TextToSpeech";
 
 const ARTICLES: Record<string, {
   slug: string; tag: string; tagColor: string; title: string; subtitle: string;
@@ -87,13 +90,18 @@ export default async function ArticlePage({ params }: Props) {
               </div>
             </Link>
             <div className={styles.headerActions}>
-              <Link href={`/profile/${article.authorHandle}`} className="btn btn-secondary btn-sm">Follow</Link>
+              <FollowButton handle={article.authorHandle} size="sm" />
               <Link href="#" className="btn btn-ghost btn-sm" aria-label="Share on Twitter"><Twitter size={14} /></Link>
               <Link href="#" className="btn btn-ghost btn-sm" aria-label="Copy link"><Link2 size={14} /></Link>
               <Link href="#" className="btn btn-ghost btn-sm" aria-label="Bookmark"><Bookmark size={14} /></Link>
             </div>
           </div>
         </header>
+
+        {/* Text-to-Speech bar */}
+        <div style={{ margin: "0 0 1rem" }}>
+          <TextToSpeech content={article.content} />
+        </div>
 
         {/* Hero image */}
         <div className={styles.heroImage}
@@ -120,23 +128,12 @@ export default async function ArticlePage({ params }: Props) {
               {article.author}
             </Link>
             <p className={styles.authorCardBio}>{article.authorBio}</p>
-            <Link href={`/profile/${article.authorHandle}`} className="btn btn-primary btn-sm" style={{ marginTop: "0.5rem", width: "fit-content" }}>
-              Follow {article.author}
-            </Link>
+            <FollowButton handle={article.authorHandle} size="sm" />
           </div>
         </div>
 
-        {/* Comments */}
-        <section className={styles.comments} aria-labelledby="comments-heading">
-          <h2 id="comments-heading" className={styles.commentsTitle}>
-            <MessageCircle size={20} />
-            Comments
-          </h2>
-          <div className={styles.commentInput}>
-            <div className="avatar avatar-sm" style={{ background: "#348fff" }}>Y</div>
-            <input className="input" placeholder="Add a thoughtful comment…" aria-label="Add a comment" />
-          </div>
-        </section>
+        {/* Comments — fully interactive client component */}
+        <Comments articleId={article.slug} />
       </div>
     </div>
   );

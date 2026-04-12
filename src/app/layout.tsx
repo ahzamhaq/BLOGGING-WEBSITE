@@ -46,8 +46,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
+    <html lang="en" data-theme="midnight" suppressHydrationWarning>
       <body>
+        {/* Inline script runs before React hydration — prevents theme flash */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('ws-theme');if(t)document.documentElement.setAttribute('data-theme',t);var a=localStorage.getItem('ws-accent');if(a){var p=JSON.parse(a);var h=p.h,s=p.s;if(h!==undefined){var r=document.documentElement;r.style.setProperty('--brand-300','hsl('+h+','+s+'%,78%)');r.style.setProperty('--brand-400','hsl('+h+','+s+'%,65%)');r.style.setProperty('--brand-500','hsl('+h+','+s+'%,54%)');r.style.setProperty('--brand-600','hsl('+h+','+s+'%,43%)');r.style.setProperty('--brand-700','hsl('+h+','+s+'%,34%)');r.style.setProperty('--ring-color','hsla('+h+','+s+'%,54%,0.22%)');}}}catch(e){}`,
+          }}
+        />
         <Providers>
           <Sidebar>
             <main id="main-content">{children}</main>

@@ -6,10 +6,11 @@ import { useSession, signOut } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
 import {
   Feather, Home, Compass, Users, Bookmark, FileText,
-  Bell, PenLine, Search, Menu, X,
+  PenLine, Search, Menu, X,
   LayoutDashboard, User as UserIcon, Settings, LogOut, ChevronUp
 } from "lucide-react";
 import { ThemePicker } from "@/components/layout/ThemePicker";
+import { NotificationsDropdown } from "@/components/layout/NotificationsDropdown";
 import styles from "./Sidebar.module.css";
 
 // Small fixed list of communities shown in the sidebar — matches the
@@ -207,12 +208,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 
           <div className={styles.topActions}>
             <ThemePicker />
-            {user && (
-              <button className={styles.iconBtn} aria-label="Notifications">
-                <Bell size={16} />
-                <span className={styles.notifDot} aria-hidden />
-              </button>
-            )}
+            <NotificationsDropdown />
           </div>
         </header>
 

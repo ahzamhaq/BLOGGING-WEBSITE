@@ -85,9 +85,16 @@ export function AiAssistant({ editor, onClose }: Props) {
 
   function handleInsert() {
     if (!result || !editor) return;
-    editor.chain().focus().insertContent(result).run();
+    // If there's a selection, replace it; otherwise append at cursor
+    const { from, to } = editor.state.selection;
+    if (from !== to) {
+      editor.chain().focus().deleteRange({ from, to }).insertContent(result).run();
+      toast.success("Replaced selection with AI result!");
+    } else {
+      editor.chain().focus().insertContent(result).run();
+      toast.success("Inserted into article!");
+    }
     setResult("");
-    toast.success("Inserted into article!");
   }
 
   async function handleCopy() {
@@ -167,11 +174,12 @@ export function AiAssistant({ editor, onClose }: Props) {
           </div>
           <div className={styles.resultText}>{result}</div>
           <button
-            className="btn btn-secondary btn-sm"
-            style={{ width: "100%", justifyContent: "center", marginTop: "0.75rem" }}
+            className="btn btn-primary btn-sm"
+            style={{ width: "100%", justifyContent: "center", marginTop: "0.75rem", gap: "0.4rem" }}
             onClick={handleInsert}
           >
-            Insert into Article
+            <Wand2 size={13} />
+            Insert into Editor
           </button>
         </div>
       )}

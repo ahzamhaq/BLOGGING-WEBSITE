@@ -1,13 +1,16 @@
 "use client";
 
+"use client";
+
 import { useState, use } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   MessageSquare, Send, Users, TrendingUp, Pin, ThumbsUp,
   ChevronDown, Hash, Lock, Clock, Eye, Shield, Crown,
-  Settings, UserMinus, Star, Bell, Tag, BarChart2, Flame
+  Settings, UserMinus, Bell, Tag, BarChart2, Flame
 } from "lucide-react";
+import toast from "react-hot-toast";
 import styles from "./room.module.css";
 
 type CommunityType = "public" | "request" | "private";
@@ -178,23 +181,26 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
   const room = ROOMS[slug];
   if (!room) notFound();
 
-  const [threads, setThreads] = useState(INITIAL_THREADS);
-  const [newPost, setNewPost] = useState("");
+  const [threads, setThreads]   = useState(INITIAL_THREADS);
+  const [newPost, setNewPost]   = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const [isAdmin] = useState(true);
+  const [replies,  setReplies]  = useState<Record<number, string>>({});
+  const [isAdmin]               = useState(true);
   const [showAdmin, setShowAdmin] = useState(false);
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [pinned,   setPinned]   = useState<Set<number>>(new Set([1]));
 
   function handleLike(id: number) {
+    const wasLiked = likedIds.has(id);
     setLikedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
     setThreads((prev) => prev.map((t) =>
-      t.id === id ? { ...t, likes: likedIds.has(id) ? t.likes - 1 : t.likes + 1 } : t
+      t.id === id ? { ...t, likes: wasLiked ? t.likes - 1 : t.likes + 1 } : t
     ));
   }
 
@@ -217,6 +223,30 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
     }, ...prev]);
     setNewPost("");
     setNewTitle("");
+  }
+
+  function handleReply(id: number) {
+    const text = replies[id]?.trim();
+    if (!text) return;
+    setThreads((prev) => prev.map((t) =>
+      t.id === id ? { ...t, replies: t.replies + 1 } : t
+    ));
+    setReplies((prev) => ({ ...prev, [id]: "" }));
+    toast.success("Reply posted!");
+  }
+
+  function handlePin(id: number) {
+    setPinned((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); toast("Thread unpinned."); }
+      else               { next.add(id);    toast.success("Thread pinned!"); }
+      return next;
+    });
+  }
+
+  function handleDelete(id: number) {
+    setThreads((prev) => prev.filter((t) => t.id !== id));
+    toast.success("Thread deleted.");
   }
 
   const visibleThreads = activeTag
@@ -268,12 +298,12 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
         {showAdmin && isAdmin && (
           <div className={styles.adminPanel}>
             <div className={styles.adminGrid}>
-              <button className={`${styles.adminBtn} ${styles.adminBtnDanger}`}><Lock size={13} />Lock Community</button>
-              <button className={styles.adminBtn}><Users size={13} />Manage Members</button>
-              <button className={styles.adminBtn}><Pin size={13} />Pin Announcement</button>
-              <button className={styles.adminBtn}><Settings size={13} />Edit Community</button>
-              <button className={`${styles.adminBtn} ${styles.adminBtnDanger}`}><UserMinus size={13} />Ban User</button>
-              <button className={styles.adminBtn}><BarChart2 size={13} />Analytics</button>
+              <button className={`${styles.adminBtn} ${styles.adminBtnDanger}`} onClick={() => toast("Community locked — coming soon.", { icon: "🔒" })}><Lock size={13} />Lock Community</button>
+              <button className={styles.adminBtn} onClick={() => toast("Manage members — coming soon.", { icon: "👥" })}><Users size={13} />Manage Members</button>
+              <button className={styles.adminBtn} onClick={() => toast.success("Announcement pinned!")}><Pin size={13} />Pin Announcement</button>
+              <button className={styles.adminBtn} onClick={() => toast("Edit community — coming soon.", { icon: "⚙️" })}><Settings size={13} />Edit Community</button>
+              <button className={`${styles.adminBtn} ${styles.adminBtnDanger}`} onClick={() => toast("Ban user — coming soon.", { icon: "🚫" })}><UserMinus size={13} />Ban User</button>
+              <button className={styles.adminBtn} onClick={() => toast("Analytics — coming soon.", { icon: "📊" })}><BarChart2 size={13} />Analytics</button>
             </div>
           </div>
         )}
@@ -370,15 +400,34 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
                     </button>
                     {isAdmin && (
                       <>
-                        <button className={`${styles.actionBtn} ${styles.actionBtnAdmin}`} title="Pin thread"><Pin size={13} /></button>
-                        <button className={`${styles.actionBtn} ${styles.actionBtnDanger}`} title="Delete thread">✕</button>
+                        <button
+                          className={`${styles.actionBtn} ${pinned.has(t.id) ? styles.actionBtnActive : styles.actionBtnAdmin}`}
+                          title={pinned.has(t.id) ? "Unpin thread" : "Pin thread"}
+                          onClick={() => handlePin(t.id)}
+                        >
+                          <Pin size={13} />
+                        </button>
+                        <button
+                          className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
+                          title="Delete thread"
+                          onClick={() => handleDelete(t.id)}
+                        >
+                          ✕
+                        </button>
                       </>
                     )}
                   </div>
                   {expanded.has(t.id) && (
                     <div className={styles.replyBox}>
-                      <input className={styles.replyInput} placeholder="Write a reply…" aria-label="Reply" />
-                      <button className="btn btn-secondary btn-sm">Reply</button>
+                      <input
+                        className={styles.replyInput}
+                        placeholder="Write a reply…"
+                        aria-label="Reply"
+                        value={replies[t.id] ?? ""}
+                        onChange={(e) => setReplies((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleReply(t.id); }}
+                      />
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleReply(t.id)}>Reply</button>
                     </div>
                   )}
                 </div>
