@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
-// /editor/new → redirect to /editor/[new-draft-id]
-// In production this would create a DB draft and redirect to its ID
+// /editor/new → serve the editor in "create" mode via the [id] dynamic route
+// The editor page detects articleId === "__new__" and does a POST on first save
 export default function NewEditorPage() {
-  redirect("/editor/new-draft");
+  redirect("/editor/__new__");
 }

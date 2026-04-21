@@ -196,24 +196,60 @@
   pointer-events: none;
 }
 
-/* ── Title ───────────────────────────────────────────────────── */
+/* ── Title section wrapper ───────────────────────────────────── */
+.titleSection {
+  position: relative;
+  margin-bottom: 0.5rem;
+  padding: 1rem 1.25rem 1rem;
+  background: rgba(52, 143, 255, 0.04);
+  border: 1px solid rgba(52, 143, 255, 0.15);
+  border-radius: 12px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.titleSection:focus-within {
+  border-color: rgba(52, 143, 255, 0.4);
+  background: rgba(52, 143, 255, 0.07);
+}
+
+.titleLabel {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brand-400);
+  margin-bottom: 0.4rem;
+  opacity: 0.85;
+}
+
+.titleCharCount {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 1rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
 .titleInput {
   width: 100%;
   background: transparent;
   border: none;
   outline: none;
   font-family: 'Inter', sans-serif;
-  font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1.15;
+  font-size: clamp(1.7rem, 4vw, 2.6rem);
+  font-weight: 500;
+  line-height: 1.2;
   color: var(--text-primary);
   resize: none;
   overflow: hidden;
   padding: 0;
-  margin-bottom: 0.75rem;
 }
-.titleInput::placeholder { color: var(--text-muted); font-weight: 400; }
+.titleInput::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+  opacity: 0.6;
+}
 
 /* ── Subtitle ────────────────────────────────────────────────── */
 .subtitleInput {
@@ -373,6 +409,7 @@
   max-width: 100%;
   border-radius: 10px;
   margin: 1.5em 0;
+  display: block;
 }
 .editorContent mark {
   background: rgba(245, 158, 11, 0.25);
@@ -383,7 +420,30 @@
   color: var(--brand-400);
   text-decoration: underline;
   text-underline-offset: 3px;
+  cursor: pointer;
+  transition: opacity 0.15s;
 }
+.editorContent a:hover { opacity: 0.75; }
+
+/* Stand-alone link class applied by the Link extension */
+.editorLink {
+  color: var(--brand-400) !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+  cursor: pointer !important;
+}
+/* ── Video embeds (iframes) ─────────────────────────────────── */
+.editorContent iframe {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 360px;
+  border-radius: 12px;
+  margin: 1.5em 0;
+  border: none;
+  background: var(--bg-overlay);
+}
+
 
 /* ── Tags section (below editor) ─────────────────────────────── */
 .tagsSection {
@@ -579,4 +639,67 @@
   .topBar { padding: 0.5rem 1rem; }
   .wordStats { display: none; }
   .toolbar { gap: 1px; padding: 0.4rem; }
+}
+
+/* ── Link tooltip popover ────────────────────────────────────── */
+.linkTooltip {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 220px;
+  max-width: 340px;
+  animation: tooltipIn 0.12s ease;
+}
+@keyframes tooltipIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.linkTooltipHref {
+  font-size: 0.72rem;
+  color: var(--brand-400);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border-default);
+}
+.linkTooltipActions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.linkTooltipBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.275rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-overlay);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.linkTooltipBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+.linkTooltipRemove {
+  margin-left: auto;
+  color: #ef4444 !important;
+  border-color: rgba(239,68,68,0.2) !important;
+}
+.linkTooltipRemove:hover {
+  background: rgba(239,68,68,0.08) !important;
+  border-color: rgba(239,68,68,0.4) !important;
 }

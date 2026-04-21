@@ -684,6 +684,12 @@ textarea.input { resize: vertical; min-height: 100px; }
   color: var(--brand-400);
   text-decoration: underline;
   text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color 0.15s, opacity 0.15s;
+}
+.prose a:hover {
+  color: var(--brand-300);
+  opacity: 0.85;
 }
 .prose hr {
   border: none;
@@ -699,6 +705,21 @@ textarea.input { resize: vertical; min-height: 100px; }
   margin: 1.5em 0;
 }
 .prose code { font-size: 0.85em; }
+.prose mark {
+  background: rgba(245, 158, 11, 0.25);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+/* Video/iframe embeds inside published articles */
+.prose iframe {
+  display: block;
+  width: 100%;
+  min-height: 360px;
+  border-radius: 12px;
+  border: none;
+  margin: 2em 0;
+  background: var(--bg-overlay);
+}
 
 /* ── Misc Utilities ──────────────────────────────────────────────── */
 .sr-only {

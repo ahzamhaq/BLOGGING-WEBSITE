@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
 import {
-  Feather, Home, Compass, Users, Bookmark, FileText,
+  Feather, Home, Compass, Users, Bookmark, FileText, Globe,
   PenLine, Search, Menu, X,
   LayoutDashboard, User as UserIcon, Settings, LogOut, ChevronUp
 } from "lucide-react";
@@ -30,11 +30,12 @@ interface NavLink {
 }
 
 const MAIN_LINKS: NavLink[] = [
-  { href: "/",             label: "Home",      icon: Home     },
-  { href: "/explore",      label: "Discover",  icon: Compass  },
-  { href: "/community",    label: "Rooms",     icon: Users    },
-  { href: "/reading-list", label: "Bookmarks", icon: Bookmark },
-  { href: "/dashboard",    label: "Drafts",    icon: FileText },
+  { href: "/",             label: "Home",         icon: Home      },
+  { href: "/explore",      label: "Discover",     icon: Compass   },
+  { href: "/community",    label: "Rooms",        icon: Users     },
+  { href: "/reading-list", label: "Bookmarks",    icon: Bookmark  },
+  { href: "/drafts",       label: "Drafts",       icon: FileText  },
+  { href: "/drafts?tab=published", label: "Publications", icon: Globe },
 ];
 
 export function Sidebar({ children }: { children: React.ReactNode }) {
@@ -63,8 +64,18 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   function isActive(href: string) {
-    if (href === "/") return pathname === "/";
-    return pathname === href || pathname.startsWith(href + "/");
+    const hrefPath = href.split("?")[0];
+    const hrefQuery = href.includes("?") ? href.split("?")[1] : null;
+    if (hrefPath === "/") return pathname === "/" && !hrefQuery;
+    // For links with query params (like Publications), match both path and query
+    if (hrefQuery) {
+      return pathname === hrefPath && typeof window !== "undefined" && window.location.search.includes(hrefQuery);
+    }
+    // For /drafts, only highlight if NOT on the published tab
+    if (hrefPath === "/drafts") {
+      return pathname === "/drafts" && (typeof window === "undefined" || !window.location.search.includes("tab=published"));
+    }
+    return pathname === hrefPath || pathname.startsWith(hrefPath + "/");
   }
 
   function onSearchKey(e: React.KeyboardEvent<HTMLInputElement>) {
