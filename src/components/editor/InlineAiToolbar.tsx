@@ -95,7 +95,11 @@ export function InlineAiToolbar({ editor }: Props) {
           prompt: `${action.prompt}\n\n"${sel.text}"\n\nReturn only the rewritten text, no explanations or quotes.`,
         }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        let errMsg = "AI request failed";
+        try { const d = await res.json(); errMsg = d.error ?? errMsg; } catch { /* ignore */ }
+        throw new Error(errMsg);
+      }
 
       const reader = res.body?.getReader();
       const dec = new TextDecoder();
@@ -108,8 +112,9 @@ export function InlineAiToolbar({ editor }: Props) {
           setResult(full);
         }
       }
-    } catch {
-      toast.error("AI request failed — check your Gemini API key.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "AI request failed";
+      toast.error(msg, { duration: 5000 });
       setActiveId(null);
     } finally {
       setLoading(false);

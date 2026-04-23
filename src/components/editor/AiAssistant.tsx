@@ -102,7 +102,16 @@ export function AiAssistant({ editor, onClose, title = "" }: Props) {
         signal: abortRef.current.signal,
       });
 
-      if (!res.ok) throw new Error("AI request failed");
+      if (!res.ok) {
+        let errMsg = `AI request failed (${res.status})`;
+        try {
+          const errData = await res.json();
+          errMsg = errData.error ?? errMsg;
+        } catch {
+          try { errMsg = await res.text() || errMsg; } catch { /* ignore */ }
+        }
+        throw new Error(errMsg);
+      }
 
       const reader = res.body?.getReader();
       const dec = new TextDecoder();
@@ -124,7 +133,8 @@ export function AiAssistant({ editor, onClose, title = "" }: Props) {
       );
     } catch (err: unknown) {
       if ((err as Error).name === "AbortError") return;
-      toast.error("AI request failed — check your Gemini API key.");
+      const msg = err instanceof Error ? err.message : "AI request failed";
+      toast.error(msg, { duration: 5000 });
       setMessages(prev => prev.filter(m => m.id !== assistantId));
     } finally {
       setLoading(false);

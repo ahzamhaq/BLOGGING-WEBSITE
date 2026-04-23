@@ -27,6 +27,7 @@ import {
 import toast from "react-hot-toast";
 import styles from "./EditorPage.module.css";
 import { AiAssistant } from "@/components/editor/AiAssistant";
+import { InlineAiToolbar } from "@/components/editor/InlineAiToolbar";
 import { VoiceButton } from "@/components/editor/VoiceButton";
 
 type PublishStatus = "draft" | "published";
@@ -647,8 +648,11 @@ export default function EditorPage() {
         </main>
 
         {/* ── AI assistant panel ── */}
-        {showAi && <AiAssistant editor={editor} onClose={() => setShowAi(false)} />}
+        {showAi && <AiAssistant editor={editor} onClose={() => setShowAi(false)} title={title} />}
       </div>
+
+      {/* ── Inline AI toolbar (floats above selected text, global) ── */}
+      <InlineAiToolbar editor={editor} />
     </div>
   );
 }
