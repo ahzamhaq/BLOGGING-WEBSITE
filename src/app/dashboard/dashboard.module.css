@@ -186,24 +186,53 @@
 .panelTitle { font-size: 0.875rem; font-weight: 700; color: var(--text-primary); }
 .panelText { font-size: 0.82rem; color: var(--text-muted); line-height: 1.55; }
 
-/* Growth chart */
+/* Growth chart (legacy kept for safety) */
 .growthChart {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: 60px;
-  padding: 0.25rem 0;
+  display: flex; align-items: flex-end; gap: 4px;
+  height: 60px; padding: 0.25rem 0;
 }
 .growthBar {
-  flex: 1;
-  background: var(--brand-600);
-  border-radius: 3px 3px 0 0;
-  opacity: 0.7;
-  transition: opacity 0.15s;
-  min-height: 4px;
+  flex: 1; background: var(--brand-600);
+  border-radius: 3px 3px 0 0; opacity: 0.7;
+  transition: opacity 0.15s; min-height: 4px;
 }
 .growthBar:last-child { opacity: 1; background: var(--brand-500); }
 .growthLabel { font-size: 0.78rem; color: var(--success-400); font-weight: 600; }
+
+/* Mini chart (real data) */
+.miniChart {
+  display: flex; align-items: flex-end; gap: 4px;
+  height: 64px; padding: 0.25rem 0 0;
+}
+.miniChartCol {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 3px;
+}
+.miniChartBar {
+  width: 100%; border-radius: 3px 3px 0 0;
+  min-height: 4px; transition: opacity 0.2s;
+}
+.miniChartLabel {
+  font-size: 0.6rem; color: var(--text-muted); font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Chart badge */
+.chartBadge {
+  margin-left: auto;
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em;
+  background: var(--bg-overlay); border: 1px solid var(--border-subtle);
+  border-radius: 100px; padding: 0.15rem 0.5rem; color: var(--text-muted);
+}
+
+/* Read time stats */
+.readTimeStats {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem; text-align: center;
+}
+.readTimeStat { display: flex; flex-direction: column; gap: 0.15rem; }
+.readTimeValue { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); }
+.readTimeLabel { font-size: 0.65rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
 
 /* Monetize panel */
 .monetizePanel { border-color: rgba(139,92,246,0.15); background: rgba(139,92,246,0.03); }

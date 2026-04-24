@@ -19,14 +19,20 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  articles      Article[]
-  comments      Comment[]
-  likes         Like[]
-  bookmarks     Bookmark[]
-  followers     Follow[]  @relation("following")
-  following     Follow[]  @relation("follower")
-  notifications Notification[]
-  resetTokens   PasswordResetToken[]
+  articles        Article[]
+  comments        Comment[]
+  likes           Like[]
+  bookmarks       Bookmark[]
+  followers       Follow[]  @relation("following")
+  following       Follow[]  @relation("follower")
+  notifications   Notification[]
+  resetTokens     PasswordResetToken[]
+  communityMemberships CommunityMember[]
+  communityThreads     CommunityThread[]
+  threadReplies        ThreadReply[]
+  threadLikes          ThreadLike[]
+  articleViews         ArticleView[]
+  followerSnapshots    FollowerSnapshot[]
 }
 
 model PasswordResetToken {
@@ -60,6 +66,7 @@ model Article {
   comments    Comment[]
   likes       Like[]
   bookmarks   Bookmark[]
+  views       ArticleView[]
 }
 
 model Comment {
@@ -123,4 +130,94 @@ model Notification {
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
+}
+
+model Community {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  desc        String
+  emoji       String
+  color       String   @default("#348fff")
+  type        String   @default("public") // "public" | "request" | "private"
+  rules       String[]
+  tags        String[]
+  createdAt   DateTime @default(now())
+
+  members     CommunityMember[]
+  threads     CommunityThread[]
+}
+
+model CommunityMember {
+  id          String    @id @default(cuid())
+  role        String    @default("member") // "owner" | "moderator" | "member"
+  joinedAt    DateTime  @default(now())
+
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  communityId String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+
+  @@unique([communityId, userId])
+}
+
+model CommunityThread {
+  id          String   @id @default(cuid())
+  title       String
+  body        String   @db.Text
+  tag         String   @default("discussion")
+  pinned      Boolean  @default(false)
+  likes       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  communityId String
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    String
+
+  replies     ThreadReply[]
+  threadLikes ThreadLike[]
+}
+
+model ThreadReply {
+  id        String   @id @default(cuid())
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  thread    CommunityThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  threadId  String
+  author    User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+}
+
+model ThreadLike {
+  id        String @id @default(cuid())
+  thread    CommunityThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  threadId  String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  @@unique([threadId, userId])
+}
+
+// Tracks each article page view (for read-time analytics)
+model ArticleView {
+  id        String   @id @default(cuid())
+  articleId String
+  userId    String?  // null for anonymous
+  readTime  Int      @default(0) // seconds actually spent reading
+  createdAt DateTime @default(now())
+
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// Daily follower count snapshot for growth chart
+model FollowerSnapshot {
+  id        String   @id @default(cuid())
+  userId    String
+  count     Int
+  date      DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

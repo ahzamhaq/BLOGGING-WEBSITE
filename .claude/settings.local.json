@@ -12,7 +12,15 @@
       "Bash(export DATABASE_URL=\"postgresql://postgres:uTnLQ8p4LF*t2?d@db.evjewzhqdxszkhgkvyjs.supabase.co:5432/postgres\")",
       "Bash(export 'DATABASE_URL=postgresql://postgres:uTnLQ8p4LF%2At2%3Fd@db.evjewzhqdxszkhgkvyjs.supabase.co:5432/postgres')",
       "Bash(export DATABASE_URL=\"postgresql://postgres:HkEhRwzoaWQSwi0r@db.evjewzhqdxszkhgkvyjs.supabase.co:5432/postgres\")",
-      "Bash(export DATABASE_URL=\"postgresql://postgres.evjewzhqdxszkhgkvyjs:HkEhRwzoaWQSwi0r@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres\")"
+      "Bash(export DATABASE_URL=\"postgresql://postgres.evjewzhqdxszkhgkvyjs:HkEhRwzoaWQSwi0r@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres\")",
+      "Bash(npx dotenv *)",
+      "Bash(DATABASE_URL=\"postgresql://postgres.evjewzhqdxszkhgkvyjs:HkEhRwzoaWQSwi0r@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres\" npx prisma db push)",
+      "Bash(mkdir -p \"c:/Users/HP/OneDrive/Desktop/PROJECTS/Blogging-website/src/app/api/community/[slug]\")",
+      "Bash(mkdir -p \"c:/Users/HP/OneDrive/Desktop/PROJECTS/Blogging-website/src/app/api/community/[slug]/join\")",
+      "Bash(mkdir -p \"c:/Users/HP/OneDrive/Desktop/PROJECTS/Blogging-website/src/app/api/community/[slug]/threads\")",
+      "Bash(mkdir -p \"c:/Users/HP/OneDrive/Desktop/PROJECTS/Blogging-website/src/app/api/community/[slug]/threads/[threadId]/replies\")",
+      "Bash(mkdir -p \"c:/Users/HP/OneDrive/Desktop/PROJECTS/Blogging-website/src/app/api/community/[slug]/threads/[threadId]/like\")",
+      "Bash(DATABASE_URL=\"postgresql://postgres.evjewzhqdxszkhgkvyjs:HkEhRwzoaWQSwi0r@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres\" npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-community.ts)"
     ]
   }
 }

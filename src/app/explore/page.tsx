@@ -2,27 +2,34 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, TrendingUp, Clock, Flame, Star, Heart, Bookmark } from "lucide-react";
+import { Search, TrendingUp, Clock, Flame, Star, Heart, Bookmark, Loader2 } from "lucide-react";
 import Link from "next/link";
 import styles from "./explore.module.css";
 
-const ALL_ARTICLES = [
-  { slug: "future-ai-writing",    tag: "Technology", tagColor: "#348fff", title: "The Future of Writing Tools",                  excerpt: "How software is changing the way we research, draft, and publish — and what writers can do about it.",                author: "Sarah Chen",    authorColor: "#348fff", readTime: "5 min",  likes: 847,  date: "Apr 10", category: "trending" },
-  { slug: "design-systems-scale", tag: "Design",     tagColor: "#a78bfa", title: "Design Systems at Scale",                      excerpt: "After three years of iterating, here's what we learned about consistency and the hidden costs of technical debt.", author: "Marcus Reid",   authorColor: "#a78bfa", readTime: "8 min",  likes: 612,  date: "Apr 9",  category: "trending" },
-  { slug: "stoicism-productivity",tag: "Philosophy", tagColor: "#ec4899", title: "What Stoics Teach Us About Productivity",       excerpt: "Marcus Aurelius ran a Roman empire. You manage a Slack inbox. The principles are surprisingly similar.",             author: "Dr. A. Patel", authorColor: "#22c55e", readTime: "6 min",  likes: 1243, date: "Apr 8",  category: "top"      },
-  { slug: "seed-mistakes",        tag: "Startups",   tagColor: "#f97316", title: "7 Mistakes Raising Our Seed Round",             excerpt: "We raised $2.4M after 11 months of failed attempts. Here's the full, brutally honest story.",                   author: "James Okafor", authorColor: "#f97316", readTime: "10 min", likes: 2108, date: "Apr 7",  category: "top"      },
-  { slug: "quantum-computing",    tag: "Science",    tagColor: "#22c55e", title: "Quantum Computing in Plain English",            excerpt: "Qubits, superposition, entanglement — explained without a physics degree.",                                     author: "Dr. A. Patel", authorColor: "#22c55e", readTime: "12 min", likes: 934,  date: "Apr 6",  category: "latest"   },
-  { slug: "deep-work-habits",     tag: "Productivity",tagColor:"#8b5cf6", title: "How I Do 6 Hours of Deep Work Every Day",       excerpt: "The exact system I use to protect my focus, eliminate distractions, and produce my best work.",                   author: "James Okafor", authorColor: "#f97316", readTime: "7 min",  likes: 3241, date: "Apr 5",  category: "latest"   },
-];
+interface Article {
+  id: string; slug: string; title: string; excerpt: string | null;
+  tags: string[]; readTime: number; createdAt: string;
+  author: { name: string | null; handle: string };
+  _count: { likes: number };
+}
 
 const TABS = [
-  { id: "trending", label: "Trending", icon: Flame     },
-  { id: "latest",   label: "Latest",   icon: Clock     },
-  { id: "top",      label: "Top",      icon: TrendingUp},
-  { id: "all",      label: "All",      icon: Star      },
+  { id: "trending", label: "Trending", icon: Flame      },
+  { id: "latest",   label: "Latest",   icon: Clock      },
+  { id: "top",      label: "Top",      icon: TrendingUp },
+  { id: "all",      label: "All",      icon: Star       },
 ] as const;
-
 type Tab = typeof TABS[number]["id"];
+
+const TAG_COLORS: Record<string, string> = {
+  Technology: "#348fff", Design: "#a78bfa", Philosophy: "#ec4899",
+  Startups: "#f97316", Science: "#22c55e", Health: "#06b6d4",
+  Productivity: "#8b5cf6", Psychology: "#f59e0b",
+};
+
+function tagColor(tag: string) {
+  return TAG_COLORS[tag] ?? "#64748b";
+}
 
 function ExploreContent() {
   const searchParams = useSearchParams();
@@ -30,38 +37,41 @@ function ExploreContent() {
 
   const [activeTab, setActiveTab] = useState<Tab>("trending");
   const [query,     setQuery]     = useState(initialQ);
+  const [articles,  setArticles]  = useState<Article[]>([]);
+  const [loading,   setLoading]   = useState(true);
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
 
   useEffect(() => { setQuery(initialQ); }, [initialQ]);
 
-  function toggleBookmark(slug: string) {
-    setBookmarks((prev) => {
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({ filter: activeTab });
+    if (query) params.set("q", query);
+    fetch(`/api/articles?${params}`)
+      .then(r => r.json())
+      .then(data => setArticles(Array.isArray(data) ? data : []))
+      .catch(() => setArticles([]))
+      .finally(() => setLoading(false));
+  }, [activeTab, query]);
+
+  async function toggleBookmark(articleId: string, slug: string) {
+    const res = await fetch(`/api/bookmarks/${articleId}`, { method: "POST" });
+    if (res.status === 401) { return; }
+    setBookmarks(prev => {
       const next = new Set(prev);
-      if (next.has(slug)) next.delete(slug);
-      else next.add(slug);
+      next.has(slug) ? next.delete(slug) : next.add(slug);
       return next;
     });
   }
 
-  const filtered = ALL_ARTICLES.filter((a) => {
-    const matchTab = activeTab === "all" || a.category === activeTab;
-    const matchQ   = !query || a.title.toLowerCase().includes(query.toLowerCase()) ||
-                     a.tag.toLowerCase().includes(query.toLowerCase()) ||
-                     a.author.toLowerCase().includes(query.toLowerCase());
-    return matchTab && matchQ;
-  });
+  const primaryTag = (a: Article) => a.tags[0] ?? "General";
 
   return (
     <div className={styles.page}>
-      {/* Hero */}
       <div className={styles.hero}>
         <div className={styles.heroContent}>
-          <h1 className={styles.heroTitle}>
-            Explore <span className="gradient-text">Ideas</span>
-          </h1>
-          <p className={styles.heroSubtitle}>
-            Thoughtful articles from writers across every discipline.
-          </p>
+          <h1 className={styles.heroTitle}>Explore <span className="gradient-text">Ideas</span></h1>
+          <p className={styles.heroSubtitle}>Thoughtful articles from writers across every discipline.</p>
           <div className={styles.searchBar}>
             <Search size={17} className={styles.searchIcon} />
             <input
@@ -80,7 +90,6 @@ function ExploreContent() {
       </div>
 
       <div className={styles.container}>
-        {/* Tabs */}
         <div className={styles.tabs} role="tablist" aria-label="Article filters">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
@@ -90,87 +99,77 @@ function ExploreContent() {
               aria-selected={activeTab === id}
               onClick={() => setActiveTab(id)}
             >
-              <Icon size={13} />
-              {label}
+              <Icon size={13} />{label}
             </button>
           ))}
         </div>
 
         <div className={styles.grid}>
-          {/* Article list */}
           <div className={styles.articleList}>
-            {filtered.length === 0 ? (
+            {loading ? (
+              <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
+                <Loader2 size={28} style={{ animation: "spin 1s linear infinite", opacity: 0.5 }} />
+              </div>
+            ) : articles.length === 0 ? (
               <div className={styles.empty}>
                 <p>No articles found{query ? ` for "${query}"` : ""}.</p>
                 <button className="btn btn-secondary btn-sm" onClick={() => setQuery("")}>Clear search</button>
               </div>
             ) : (
-              filtered.map((a) => (
-                <div key={a.slug} className={styles.articleCard}>
-                  <div className={styles.articleAccent} style={{ background: a.tagColor }} />
-                  <div className={styles.articleBody}>
-                    <div className={styles.articleMeta}>
-                      <span className={styles.articleTag} style={{ color: a.tagColor }}>{a.tag}</span>
-                      <span className={styles.articleDate}>{a.date}</span>
-                    </div>
-                    <Link href={`/article/${a.slug}`} className={styles.articleTitleLink}>
-                      <h2 className={styles.articleTitle}>{a.title}</h2>
-                    </Link>
-                    <p className={styles.articleExcerpt}>{a.excerpt}</p>
-                    <div className={styles.articleFooter}>
-                      <div className={styles.authorRow}>
-                        <div className="avatar avatar-sm" style={{ background: a.authorColor, fontSize: "0.65rem" }}>
-                          {a.author[0]}
-                        </div>
-                        <span className={styles.authorName}>{a.author}</span>
-                        <span className={styles.sep}>·</span>
-                        <span className={styles.readTime}>{a.readTime} read</span>
+              articles.map((a) => {
+                const tag = primaryTag(a);
+                const color = tagColor(tag);
+                return (
+                  <div key={a.slug} className={styles.articleCard}>
+                    <div className={styles.articleAccent} style={{ background: color }} />
+                    <div className={styles.articleBody}>
+                      <div className={styles.articleMeta}>
+                        <span className={styles.articleTag} style={{ color }}>{tag}</span>
+                        <span className={styles.articleDate}>
+                          {new Date(a.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </span>
                       </div>
-                      <div className={styles.articleActions}>
-                        <span className={styles.likes}><Heart size={13} />{a.likes.toLocaleString()}</span>
-                        <button
-                          className={`${styles.bookmarkBtn} ${bookmarks.has(a.slug) ? styles.bookmarkActive : ""}`}
-                          onClick={() => toggleBookmark(a.slug)}
-                          aria-label={bookmarks.has(a.slug) ? "Remove bookmark" : "Bookmark"}
-                          aria-pressed={bookmarks.has(a.slug)}
-                        >
-                          <Bookmark size={14} fill={bookmarks.has(a.slug) ? "currentColor" : "none"} />
-                        </button>
+                      <Link href={`/article/${a.slug}`} className={styles.articleTitleLink}>
+                        <h2 className={styles.articleTitle}>{a.title}</h2>
+                      </Link>
+                      {a.excerpt && <p className={styles.articleExcerpt}>{a.excerpt}</p>}
+                      <div className={styles.articleFooter}>
+                        <div className={styles.authorRow}>
+                          <div className="avatar avatar-sm" style={{ background: color, fontSize: "0.65rem" }}>
+                            {(a.author.name ?? a.author.handle)[0].toUpperCase()}
+                          </div>
+                          <Link href={`/profile/${a.author.handle}`} className={styles.authorName}>
+                            {a.author.name ?? a.author.handle}
+                          </Link>
+                          <span className={styles.sep}>·</span>
+                          <span className={styles.readTime}>{a.readTime} min read</span>
+                        </div>
+                        <div className={styles.articleActions}>
+                          <span className={styles.likes}><Heart size={13} />{a._count.likes.toLocaleString()}</span>
+                          <button
+                            className={`${styles.bookmarkBtn} ${bookmarks.has(a.slug) ? styles.bookmarkActive : ""}`}
+                            onClick={() => toggleBookmark(a.id, a.slug)}
+                            aria-label={bookmarks.has(a.slug) ? "Remove bookmark" : "Bookmark"}
+                            aria-pressed={bookmarks.has(a.slug)}
+                          >
+                            <Bookmark size={14} fill={bookmarks.has(a.slug) ? "currentColor" : "none"} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
-          {/* Sidebar */}
           <aside className={styles.sidebar}>
             <div className={styles.sideCard}>
               <h3 className={styles.sideTitle}><TrendingUp size={14} /> Trending Topics</h3>
-              {["Technology","Design","Startups","Science","Philosophy","Productivity","Health","Psychology"].map((t) => (
-                <button key={t} className={styles.sideTag} onClick={() => setQuery(t)}>
+              {Object.keys(TAG_COLORS).map((t) => (
+                <button key={t} className={styles.sideTag} style={{ color: tagColor(t) }} onClick={() => setQuery(t)}>
                   #{t}
                 </button>
-              ))}
-            </div>
-            <div className={styles.sideCard}>
-              <h3 className={styles.sideTitle}><Star size={14} /> Writers to Follow</h3>
-              {[
-                { name: "Sarah Chen",   handle: "sarahchen",   tag: "Technology", color: "#348fff" },
-                { name: "Marcus Reid",  handle: "marcusreid",  tag: "Design",     color: "#a78bfa" },
-                { name: "James Okafor",handle: "jamesokafor", tag: "Startups",   color: "#f97316" },
-              ].map((w) => (
-                <div key={w.handle} className={styles.sideWriter}>
-                  <Link href={`/profile/${w.handle}`} className={styles.sideWriterLeft}>
-                    <div className="avatar avatar-sm" style={{ background: w.color, fontSize: "0.65rem" }}>{w.name[0]}</div>
-                    <div>
-                      <p className={styles.sideWriterName}>{w.name}</p>
-                      <p className={styles.sideWriterTag} style={{ color: w.color }}>{w.tag}</p>
-                    </div>
-                  </Link>
-                  <Link href={`/profile/${w.handle}`} className="btn btn-secondary btn-sm">Follow</Link>
-                </div>
               ))}
             </div>
           </aside>

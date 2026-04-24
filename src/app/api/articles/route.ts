@@ -3,6 +3,46 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import slugify from "slugify";
 
+// GET /api/articles — list published articles with optional filter/search
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const filter = searchParams.get("filter") ?? "latest";
+  const q = searchParams.get("q")?.trim() ?? "";
+
+  const where = {
+    published: true,
+    ...(q ? {
+      OR: [
+        { title: { contains: q, mode: "insensitive" as const } },
+        { tags: { has: q } },
+        { excerpt: { contains: q, mode: "insensitive" as const } },
+        { author: { name: { contains: q, mode: "insensitive" as const } } },
+        { author: { handle: { contains: q, mode: "insensitive" as const } } },
+      ],
+    } : {}),
+  };
+
+  const orderBy = filter === "top"
+    ? { likes: { _count: "desc" as const } }
+    : { createdAt: "desc" as const };
+
+  try {
+    const articles = await prisma.article.findMany({
+      where,
+      orderBy,
+      take: 30,
+      include: {
+        author: { select: { name: true, handle: true, image: true } },
+        _count: { select: { likes: true } },
+      },
+    });
+    return NextResponse.json(articles);
+  } catch (err) {
+    console.error("GET /api/articles error:", err);
+    return NextResponse.json({ error: "Failed to fetch articles" }, { status: 500 });
+  }
+}
+
 // POST /api/articles — create a new draft or published article
 export async function POST(req: NextRequest) {
   try {

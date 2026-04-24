@@ -8,6 +8,7 @@ import { ArticleActions } from "./ArticleActions";
 import { Comments } from "./Comments";
 import { FollowButton } from "@/components/FollowButton";
 import { TextToSpeech } from "@/components/article/TextToSpeech";
+import { ReadTimeTracker } from "@/components/article/ReadTimeTracker";
 import { prisma } from "@/lib/db";
 
 interface Props { params: Promise<{ slug: string }> }
@@ -83,6 +84,9 @@ export default async function ArticlePage({ params }: Props) {
             </div>
           </div>
         </header>
+
+        {/* ── Read-time tracker (fires on leave) ─────────────── */}
+        <ReadTimeTracker articleId={article.id} />
 
         {/* ── Text-to-speech ─────────────────────────────────── */}
         <div style={{ margin: "0 0 1rem" }}>

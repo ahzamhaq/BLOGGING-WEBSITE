@@ -1,14 +1,12 @@
 "use client";
 
-"use client";
-
-import { useState, use } from "react";
+import { useState, use, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   MessageSquare, Send, Users, TrendingUp, Pin, ThumbsUp,
   ChevronDown, Hash, Lock, Clock, Eye, Shield, Crown,
-  Settings, UserMinus, Bell, Tag, BarChart2, Flame
+  Settings, UserMinus, Bell, Tag, BarChart2, Flame, Loader2
 } from "lucide-react";
 import toast from "react-hot-toast";
 import styles from "./room.module.css";
@@ -16,134 +14,22 @@ import styles from "./room.module.css";
 type CommunityType = "public" | "request" | "private";
 type MemberRole = "owner" | "moderator" | "member";
 
-interface RoomData {
-  name: string; desc: string; color: string; emoji: string;
-  members: string; type: CommunityType; tags: string[];
-  rules: string[]; weeklyFeatured?: string;
-  roles: { name: string; role: MemberRole; color: string }[];
+interface Author { id: string; name: string | null; handle: string; image: string | null }
+interface ThreadData {
+  id: string; title: string; body: string; tag: string; pinned: boolean;
+  createdAt: string; author: Author;
+  _count: { replies: number; threadLikes: number };
 }
-
-const ROOMS: Record<string, RoomData> = {
-  tech: {
-    name: "Tech & Code", color: "#348fff", emoji: "💻", members: "4.2K",
-    type: "public",
-    desc: "Programming, AI, the web, and everything in between.",
-    tags: ["javascript", "ai", "web-dev", "devops", "open-source"],
-    rules: ["No spam or promotional posts", "Be constructive in code reviews", "Share knowledge freely", "Credit original authors"],
-    weeklyFeatured: "Is Rust worth learning in 2026?",
-    roles: [
-      { name: "Sarah Chen", role: "owner", color: "#348fff" },
-      { name: "Marcus Reid", role: "moderator", color: "#a78bfa" },
-      { name: "Priya Nair", role: "moderator", color: "#22c55e" },
-    ],
-  },
-  design: {
-    name: "Design & UX", color: "#a78bfa", emoji: "🎨", members: "2.8K",
-    type: "public",
-    desc: "Visual design, product thinking, and creative craft.",
-    tags: ["figma", "ui-ux", "branding", "typography", "motion"],
-    rules: ["Constructive feedback only", "Credit your inspiration sources", "No client work solicitation"],
-    roles: [
-      { name: "Elena Voss", role: "owner", color: "#a78bfa" },
-      { name: "James Park", role: "moderator", color: "#f97316" },
-    ],
-  },
-  writing: {
-    name: "Writing Craft", color: "#22c55e", emoji: "✍️", members: "3.1K",
-    type: "public",
-    desc: "Tips, feedback, and discussions about the writing process.",
-    tags: ["fiction", "non-fiction", "editing", "voice", "structure"],
-    rules: ["Be kind in feedback", "Specific critique is more helpful", "Share your own work too", "No AI-generated submissions for critique"],
-    weeklyFeatured: "How do you find your writing voice?",
-    roles: [
-      { name: "Clara Mbeki", role: "owner", color: "#22c55e" },
-      { name: "Ahmed Hassan", role: "moderator", color: "#f59e0b" },
-    ],
-  },
-  startups: {
-    name: "Startups", color: "#f97316", emoji: "🚀", members: "5.6K",
-    type: "request",
-    desc: "Building companies, fundraising, and founder stories.",
-    tags: ["saas", "fundraising", "growth", "product", "b2b"],
-    rules: ["No cold pitching to members", "Keep fundraising discussions respectful", "Verified founders get flair", "Share lessons, not just wins"],
-    roles: [
-      { name: "Jordan Okafor", role: "owner", color: "#f97316" },
-      { name: "Lena Kim", role: "moderator", color: "#06b6d4" },
-    ],
-  },
-  science: {
-    name: "Science & Nature", color: "#06b6d4", emoji: "🔬", members: "1.9K",
-    type: "public",
-    desc: "Research, discoveries, and making science approachable.",
-    tags: ["biology", "physics", "climate", "space", "research"],
-    rules: ["Cite peer-reviewed sources", "Distinguish consensus from debate", "No pseudoscience"],
-    roles: [{ name: "Dr. A. Patel", role: "owner", color: "#06b6d4" }],
-  },
-  philosophy: {
-    name: "Philosophy", color: "#ec4899", emoji: "🤔", members: "2.3K",
-    type: "request",
-    desc: "Big ideas, ethics, epistemology, and how to live well.",
-    tags: ["ethics", "epistemology", "metaphysics", "stoicism", "eastern"],
-    rules: ["Steelman opposing views", "Define your terms clearly", "Argue ideas, not people"],
-    roles: [{ name: "Prof. Amara", role: "owner", color: "#ec4899" }],
-  },
-  productivity: {
-    name: "Productivity", color: "#8b5cf6", emoji: "⚡", members: "3.8K",
-    type: "public",
-    desc: "Systems, habits, and tools for doing your best work.",
-    tags: ["pkm", "gtd", "tools", "habits", "deep-work"],
-    rules: ["Share systems that actually work for you", "Be skeptical of productivity hacks", "No affiliate spam"],
-    weeklyFeatured: "What's your single best morning habit?",
-    roles: [{ name: "James Okafor", role: "owner", color: "#8b5cf6" }],
-  },
-  health: {
-    name: "Health & Mind", color: "#10b981", emoji: "🧠", members: "2.1K",
-    type: "public",
-    desc: "Mental and physical wellbeing, backed by evidence.",
-    tags: ["mental-health", "fitness", "nutrition", "sleep", "mindfulness"],
-    rules: ["No medical advice (share resources instead)", "Be trauma-aware", "Cite sources for health claims"],
-    roles: [{ name: "Dr. Yuki T.", role: "owner", color: "#10b981" }],
-  },
-  "pro-writers": {
-    name: "Pro Writers Circle", color: "#f59e0b", emoji: "👑", members: "420",
-    type: "private",
-    desc: "Exclusive community for verified professional writers.",
-    tags: ["publishing", "agents", "contracts", "marketing"],
-    rules: ["Verified pro writers only", "NDAs apply for business discussions", "Be generous with experience"],
-    roles: [{ name: "Clara Mbeki", role: "owner", color: "#f59e0b" }],
-  },
-};
-
-const INITIAL_THREADS = [
-  {
-    id: 1, pinned: true,
-    author: "Sarah Chen", authorColor: "#348fff", time: "2h ago",
-    title: "How do you find your writing voice?",
-    body: "I've been writing for 3 years and still feel like I'm searching for it. What practices helped you develop a distinctive voice?",
-    likes: 34, replies: 12, tag: "craft",
-  },
-  {
-    id: 2, pinned: false,
-    author: "Marcus Reid", authorColor: "#a78bfa", time: "4h ago",
-    title: "Is long-form content still worth it in 2026?",
-    body: "With everyone's attention spans shrinking, does depth still have an audience? I'd argue yes — but the bar is higher than ever.",
-    likes: 28, replies: 9, tag: "strategy",
-  },
-  {
-    id: 3, pinned: false,
-    author: "James Okafor", authorColor: "#f97316", time: "6h ago",
-    title: "What's the best outlining method you've tried?",
-    body: "I've gone through Zettelkasten, mind mapping, the snowflake method… nothing sticks. Looking for something more flexible.",
-    likes: 19, replies: 7, tag: "tools",
-  },
-  {
-    id: 4, pinned: false,
-    author: "Priya Nair", authorColor: "#22c55e", time: "1d ago",
-    title: "Share your daily writing routine",
-    body: "Morning pages? Night owl sessions? I'm curious how serious writers structure their day. Drop your routine below.",
-    likes: 45, replies: 23, tag: "habits",
-  },
-];
+interface MemberData {
+  id: string; role: MemberRole; user: Author;
+}
+interface CommunityData {
+  id: string; slug: string; name: string; desc: string; emoji: string;
+  color: string; type: CommunityType; tags: string[]; rules: string[];
+  _count: { members: number; threads: number };
+  members: MemberData[];
+  threads: ThreadData[];
+}
 
 function RoleBadge({ role }: { role: MemberRole }) {
   if (role === "owner")     return <span className={`${styles.roleBadge} ${styles.roleOwner}`}><Crown size={10} />Owner</span>;
@@ -151,107 +37,147 @@ function RoleBadge({ role }: { role: MemberRole }) {
   return <span className={`${styles.roleBadge} ${styles.roleMember}`}>Member</span>;
 }
 
-function JoinButton({ type, color }: { type: CommunityType; color: string }) {
-  const [state, setState] = useState<"idle" | "requested" | "joined">("idle");
-  if (type === "private") {
-    return <button className="btn btn-secondary btn-sm" disabled><Lock size={13} />Invite Only</button>;
-  }
-  if (type === "request") {
-    if (state === "requested") {
-      return <button className={`btn btn-secondary btn-sm ${styles.requestedBtn}`} disabled><Clock size={13} />Requested</button>;
-    }
-    return (
-      <button className="btn btn-primary btn-sm" style={{ background: color }} onClick={() => setState("requested")}>
-        <Clock size={13} />Request to Join
-      </button>
-    );
-  }
-  if (state === "joined") {
-    return <button className={`btn btn-secondary btn-sm ${styles.joinedBtn}`}><Bell size={13} />Joined</button>;
-  }
-  return (
-    <button className="btn btn-primary btn-sm" style={{ background: color }} onClick={() => setState("joined")}>
-      <Users size={13} />Join Room
-    </button>
-  );
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 }
 
 export default function CommunityRoomPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const room = ROOMS[slug];
-  if (!room) notFound();
 
-  const [threads, setThreads]   = useState(INITIAL_THREADS);
-  const [newPost, setNewPost]   = useState("");
-  const [newTitle, setNewTitle] = useState("");
-  const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const [replies,  setReplies]  = useState<Record<number, string>>({});
-  const [isAdmin]               = useState(true);
-  const [showAdmin, setShowAdmin] = useState(false);
+  const [room, setRoom]           = useState<CommunityData | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [notFound404, set404]     = useState(false);
+  const [threads, setThreads]     = useState<ThreadData[]>([]);
+  const [newTitle, setNewTitle]   = useState("");
+  const [newPost, setNewPost]     = useState("");
+  const [posting, setPosting]     = useState(false);
+  const [likedIds, setLikedIds]   = useState<Set<string>>(new Set());
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [expanded, setExpanded]   = useState<Set<string>>(new Set());
+  const [replies, setReplies]     = useState<Record<string, string>>({});
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [joined, setJoined]       = useState(false);
+  const [joining, setJoining]     = useState(false);
   const [activeTag, setActiveTag] = useState<string | null>(null);
-  const [pinned,   setPinned]   = useState<Set<number>>(new Set([1]));
+  const [showAdmin, setShowAdmin] = useState(false);
 
-  function handleLike(id: number) {
-    const wasLiked = likedIds.has(id);
-    setLikedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-    setThreads((prev) => prev.map((t) =>
-      t.id === id ? { ...t, likes: wasLiked ? t.likes - 1 : t.likes + 1 } : t
-    ));
+  const fetchRoom = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/community/${slug}`);
+      if (res.status === 404) { set404(true); return; }
+      const data: CommunityData = await res.json();
+      setRoom(data);
+      setThreads(data.threads);
+      const counts: Record<string, number> = {};
+      data.threads.forEach(t => { counts[t.id] = t._count.threadLikes; });
+      setLikeCounts(counts);
+    } catch {
+      toast.error("Failed to load community");
+    } finally {
+      setLoading(false);
+    }
+  }, [slug]);
+
+  useEffect(() => { fetchRoom(); }, [fetchRoom]);
+
+  if (notFound404) notFound();
+
+  async function handleJoin() {
+    if (!room) return;
+    setJoining(true);
+    try {
+      const res = await fetch(`/api/community/${slug}/join`, { method: "POST" });
+      if (res.status === 401) { toast.error("Sign in to join rooms"); return; }
+      const data = await res.json();
+      setJoined(data.joined);
+      toast.success(data.joined ? "Joined room!" : "Left room");
+    } catch {
+      toast.error("Failed to update membership");
+    } finally {
+      setJoining(false);
+    }
   }
 
-  function handleExpand(id: number) {
-    setExpanded((prev) => {
+  async function handleLike(threadId: string) {
+    const res = await fetch(`/api/community/${slug}/threads/${threadId}/like`, { method: "POST" });
+    if (res.status === 401) { toast.error("Sign in to like"); return; }
+    const data = await res.json();
+    setLikedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      data.liked ? next.add(threadId) : next.delete(threadId);
       return next;
     });
+    setLikeCounts(prev => ({ ...prev, [threadId]: data.likes }));
   }
 
-  function handlePost(e: React.FormEvent) {
+  async function handlePost(e: React.FormEvent) {
     e.preventDefault();
-    if (!newPost.trim() || !newTitle.trim()) return;
-    setThreads((prev) => [{
-      id: Date.now(), pinned: false,
-      author: "You", authorColor: "#64748b", time: "just now",
-      title: newTitle.trim(), body: newPost.trim(),
-      likes: 0, replies: 0, tag: "discussion",
-    }, ...prev]);
-    setNewPost("");
-    setNewTitle("");
+    if (!newTitle.trim() || !newPost.trim()) return;
+    setPosting(true);
+    try {
+      const res = await fetch(`/api/community/${slug}/threads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle.trim(), body: newPost.trim(), tag: "discussion" }),
+      });
+      if (res.status === 401) { toast.error("Sign in to post"); return; }
+      const thread: ThreadData = await res.json();
+      setThreads(prev => [thread, ...prev]);
+      setLikeCounts(prev => ({ ...prev, [thread.id]: 0 }));
+      setNewTitle("");
+      setNewPost("");
+      toast.success("Thread posted!");
+    } catch {
+      toast.error("Failed to post");
+    } finally {
+      setPosting(false);
+    }
   }
 
-  function handleReply(id: number) {
-    const text = replies[id]?.trim();
+  async function handleReply(threadId: string) {
+    const text = replies[threadId]?.trim();
     if (!text) return;
-    setThreads((prev) => prev.map((t) =>
-      t.id === id ? { ...t, replies: t.replies + 1 } : t
+    const res = await fetch(`/api/community/${slug}/threads/${threadId}/replies`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: text }),
+    });
+    if (res.status === 401) { toast.error("Sign in to reply"); return; }
+    setThreads(prev => prev.map(t =>
+      t.id === threadId ? { ...t, _count: { ...t._count, replies: t._count.replies + 1 } } : t
     ));
-    setReplies((prev) => ({ ...prev, [id]: "" }));
+    setReplies(prev => ({ ...prev, [threadId]: "" }));
+    setReplyingTo(null);
     toast.success("Reply posted!");
   }
 
-  function handlePin(id: number) {
-    setPinned((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) { next.delete(id); toast("Thread unpinned."); }
-      else               { next.add(id);    toast.success("Thread pinned!"); }
-      return next;
-    });
-  }
-
-  function handleDelete(id: number) {
-    setThreads((prev) => prev.filter((t) => t.id !== id));
-    toast.success("Thread deleted.");
+  async function handlePin(threadId: string) {
+    const res = await fetch(`/api/community/${slug}/threads/${threadId}/pin`, { method: "POST" });
+    if (res.status === 403) { toast.error("Only moderators can pin"); return; }
+    const data = await res.json();
+    setThreads(prev => prev.map(t => t.id === threadId ? { ...t, pinned: data.pinned } : t));
+    toast(data.pinned ? "Thread pinned!" : "Thread unpinned");
   }
 
   const visibleThreads = activeTag
     ? threads.filter(t => t.tag === activeTag)
-    : threads;
+    : [...threads].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+        <Loader2 size={32} style={{ animation: "spin 1s linear infinite", opacity: 0.5 }} />
+      </div>
+    );
+  }
+
+  if (!room) return null;
 
   return (
     <div className={styles.page}>
@@ -284,18 +210,28 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
             </div>
           </div>
           <div className={styles.headerRight}>
-            <span className={styles.memberCount}><Users size={14} />{room.members} members</span>
-            <JoinButton type={room.type} color={room.color} />
-            {isAdmin && (
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowAdmin(v => !v)}>
-                <Settings size={13} />Admin
+            <span className={styles.memberCount}><Users size={14} />{room._count.members} members</span>
+            {room.type === "private" ? (
+              <button className="btn btn-secondary btn-sm" disabled><Lock size={13} />Invite Only</button>
+            ) : (
+              <button
+                className={`btn btn-sm ${joined ? "btn-secondary" : "btn-primary"}`}
+                style={joined ? undefined : { background: room.color }}
+                onClick={handleJoin}
+                disabled={joining}
+              >
+                {joining ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> :
+                  joined ? <><Bell size={13} />Joined</> : <><Users size={13} />{room.type === "request" ? "Request to Join" : "Join Room"}</>
+                }
               </button>
             )}
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowAdmin(v => !v)}>
+              <Settings size={13} />Admin
+            </button>
           </div>
         </div>
 
-        {/* Admin Controls Panel */}
-        {showAdmin && isAdmin && (
+        {showAdmin && (
           <div className={styles.adminPanel}>
             <div className={styles.adminGrid}>
               <button className={`${styles.adminBtn} ${styles.adminBtnDanger}`} onClick={() => toast("Community locked — coming soon.", { icon: "🔒" })}><Lock size={13} />Lock Community</button>
@@ -308,15 +244,9 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
           </div>
         )}
 
-        {/* Tags filter */}
         <div className={styles.tagsBar}>
           <Tag size={12} className={styles.tagIcon} />
-          <button
-            className={`${styles.tagChip} ${activeTag === null ? styles.tagChipActive : ""}`}
-            onClick={() => setActiveTag(null)}
-          >
-            All
-          </button>
+          <button className={`${styles.tagChip} ${activeTag === null ? styles.tagChipActive : ""}`} onClick={() => setActiveTag(null)}>All</button>
           {room.tags.map(tag => (
             <button
               key={tag}
@@ -332,17 +262,6 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
       <div className={styles.container}>
         <div className={styles.grid}>
           <main>
-            {/* Weekly featured */}
-            {room.weeklyFeatured && (
-              <div className={styles.featuredThread}>
-                <Flame size={14} className={styles.featuredIcon} />
-                <div>
-                  <div className={styles.featuredLabel}>Weekly Featured Discussion</div>
-                  <div className={styles.featuredTitle}>{room.weeklyFeatured}</div>
-                </div>
-              </div>
-            )}
-
             {/* New post form */}
             <form className={styles.newPost} onSubmit={handlePost}>
               <div className="avatar avatar-sm" style={{ background: "#64748b", fontSize: "0.65rem", flexShrink: 0 }}>Y</div>
@@ -362,13 +281,21 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
                     onChange={e => setNewPost(e.target.value)}
                     aria-label="New discussion"
                   />
-                  <button type="submit" className="btn btn-primary btn-sm" aria-label="Post"><Send size={14} /></button>
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={posting} aria-label="Post">
+                    {posting ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={14} />}
+                  </button>
                 </div>
               </div>
             </form>
 
             {/* Threads */}
             <div className={styles.threads}>
+              {visibleThreads.length === 0 && (
+                <div style={{ textAlign: "center", padding: "3rem", opacity: 0.5 }}>
+                  <Flame size={32} style={{ margin: "0 auto 0.5rem" }} />
+                  <p>No threads yet. Be the first to start a discussion!</p>
+                </div>
+              )}
               {visibleThreads.map((t) => (
                 <div key={t.id} className={`${styles.thread} ${t.pinned ? styles.threadPinned : ""}`}>
                   {t.pinned && (
@@ -377,9 +304,11 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
                     </div>
                   )}
                   <div className={styles.threadHeader}>
-                    <div className="avatar avatar-sm" style={{ background: t.authorColor, fontSize: "0.65rem" }}>{t.author[0]}</div>
-                    <span className={styles.threadAuthor}>{t.author}</span>
-                    <span className={styles.threadTime}>{t.time}</span>
+                    <div className="avatar avatar-sm" style={{ background: room.color, fontSize: "0.65rem" }}>
+                      {(t.author.name ?? t.author.handle)[0].toUpperCase()}
+                    </div>
+                    <span className={styles.threadAuthor}>{t.author.name ?? t.author.handle}</span>
+                    <span className={styles.threadTime}>{timeAgo(t.createdAt)}</span>
                     <span className={styles.threadTag}>#{t.tag}</span>
                   </div>
                   <h3 className={styles.threadTitle}>{t.title}</h3>
@@ -392,32 +321,27 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
                       aria-pressed={likedIds.has(t.id)}
                     >
                       <ThumbsUp size={14} fill={likedIds.has(t.id) ? "currentColor" : "none"} />
-                      {t.likes}
+                      {likeCounts[t.id] ?? 0}
                     </button>
-                    <button className={styles.actionBtn} onClick={() => handleExpand(t.id)}>
-                      <MessageSquare size={14} />{t.replies} replies
+                    <button
+                      className={styles.actionBtn}
+                      onClick={() => {
+                        setExpanded(prev => { const n = new Set(prev); n.has(t.id) ? n.delete(t.id) : n.add(t.id); return n; });
+                        setReplyingTo(r => r === t.id ? null : t.id);
+                      }}
+                    >
+                      <MessageSquare size={14} />{t._count.replies} replies
                       <ChevronDown size={12} style={{ transform: expanded.has(t.id) ? "rotate(180deg)" : "", transition: "transform 0.2s" }} />
                     </button>
-                    {isAdmin && (
-                      <>
-                        <button
-                          className={`${styles.actionBtn} ${pinned.has(t.id) ? styles.actionBtnActive : styles.actionBtnAdmin}`}
-                          title={pinned.has(t.id) ? "Unpin thread" : "Pin thread"}
-                          onClick={() => handlePin(t.id)}
-                        >
-                          <Pin size={13} />
-                        </button>
-                        <button
-                          className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
-                          title="Delete thread"
-                          onClick={() => handleDelete(t.id)}
-                        >
-                          ✕
-                        </button>
-                      </>
-                    )}
+                    <button
+                      className={`${styles.actionBtn} ${t.pinned ? styles.actionBtnActive : styles.actionBtnAdmin}`}
+                      title={t.pinned ? "Unpin thread" : "Pin thread"}
+                      onClick={() => handlePin(t.id)}
+                    >
+                      <Pin size={13} />
+                    </button>
                   </div>
-                  {expanded.has(t.id) && (
+                  {replyingTo === t.id && (
                     <div className={styles.replyBox}>
                       <input
                         className={styles.replyInput}
@@ -426,6 +350,7 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
                         value={replies[t.id] ?? ""}
                         onChange={(e) => setReplies((prev) => ({ ...prev, [t.id]: e.target.value }))}
                         onKeyDown={(e) => { if (e.key === "Enter") handleReply(t.id); }}
+                        autoFocus
                       />
                       <button className="btn btn-secondary btn-sm" onClick={() => handleReply(t.id)}>Reply</button>
                     </div>
@@ -440,8 +365,8 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
               <h3 className={styles.sideTitle}><TrendingUp size={14} />About</h3>
               <p className={styles.sideText}>{room.desc}</p>
               <div className={styles.sideStats}>
-                <div><span>{room.members}</span><small>Members</small></div>
-                <div><span>{threads.length}</span><small>Threads</small></div>
+                <div><span>{room._count.members}</span><small>Members</small></div>
+                <div><span>{room._count.threads}</span><small>Threads</small></div>
                 <div>
                   <span>{room.type === "public" ? "Open" : room.type === "request" ? "Request" : "Private"}</span>
                   <small>Type</small>
@@ -449,19 +374,21 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
               </div>
             </div>
 
-            {/* Member roles */}
-            <div className={styles.sideCard}>
-              <h3 className={styles.sideTitle}><Crown size={14} />Team</h3>
-              {room.roles.map((m, i) => (
-                <div key={i} className={styles.memberRow}>
-                  <div className="avatar avatar-sm" style={{ background: m.color, fontSize: "0.65rem" }}>{m.name[0]}</div>
-                  <span className={styles.memberName}>{m.name}</span>
-                  <RoleBadge role={m.role} />
-                </div>
-              ))}
-            </div>
+            {room.members.length > 0 && (
+              <div className={styles.sideCard}>
+                <h3 className={styles.sideTitle}><Crown size={14} />Team</h3>
+                {room.members.filter(m => m.role !== "member").map((m) => (
+                  <div key={m.id} className={styles.memberRow}>
+                    <div className="avatar avatar-sm" style={{ background: room.color, fontSize: "0.65rem" }}>
+                      {(m.user.name ?? m.user.handle)[0].toUpperCase()}
+                    </div>
+                    <span className={styles.memberName}>{m.user.name ?? m.user.handle}</span>
+                    <RoleBadge role={m.role} />
+                  </div>
+                ))}
+              </div>
+            )}
 
-            {/* Community rules */}
             <div className={styles.sideCard}>
               <h3 className={styles.sideTitle}><Shield size={14} />Rules</h3>
               {room.rules.map((rule, i) => (
@@ -470,21 +397,6 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
                   <span className={styles.ruleText}>{rule}</span>
                 </div>
               ))}
-            </div>
-
-            {/* Other rooms */}
-            <div className={styles.sideCard}>
-              <h3 className={styles.sideTitle}><Hash size={14} />Other Rooms</h3>
-              {Object.entries(ROOMS)
-                .filter(([s]) => s !== slug)
-                .slice(0, 4)
-                .map(([slug, r]) => (
-                  <Link key={slug} href={`/community/${slug}`} className={styles.otherRoom}>
-                    <span>{r.emoji}</span>
-                    <span className={styles.otherRoomName}>{r.name}</span>
-                    {r.type === "private" && <Lock size={10} style={{ color: "#f87171", marginLeft: "auto" }} />}
-                  </Link>
-                ))}
             </div>
           </aside>
         </div>

@@ -210,3 +210,170 @@
 .typeIcon { color: var(--brand-400); margin-top: 2px; flex-shrink: 0; }
 .typeName { font-size: 0.8rem; font-weight: 700; color: var(--text-primary); }
 .typeDesc { font-size: 0.72rem; color: var(--text-muted); }
+
+/* ── Filter bar ─────────────────────────────────────────────────── */
+.filterBar {
+  display: flex; flex-direction: column; gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.searchWrap { position: relative; max-width: 360px; }
+.searchIcon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.searchInput {
+  width: 100%; padding: 0.55rem 0.75rem 0.55rem 2.25rem;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: 10px; font-size: 0.875rem; color: var(--text-primary);
+  outline: none; transition: border-color 0.15s;
+}
+.searchInput:focus { border-color: var(--brand-400); }
+.tagFilterRow { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.tagFilter {
+  padding: 0.25rem 0.65rem; border-radius: 100px;
+  font-size: 0.72rem; font-weight: 600; cursor: pointer;
+  background: var(--bg-overlay); border: 1px solid var(--border-subtle);
+  color: var(--text-muted); transition: all 0.15s;
+}
+.tagFilter:hover { border-color: var(--brand-400); color: var(--brand-400); }
+.tagFilterActive { background: rgba(52,143,255,0.12); border-color: rgba(52,143,255,0.3); color: var(--brand-400); }
+
+/* ── Main header (title + new button) ──────────────────────────── */
+.mainHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+.mainHeader .sectionTitle { margin-bottom: 0; }
+
+/* ── Room tags ──────────────────────────────────────────────────── */
+.roomTags { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.125rem; }
+.roomTag {
+  font-size: 0.67rem; font-weight: 600;
+  color: var(--text-muted); background: var(--bg-overlay);
+  border: 1px solid var(--border-subtle); border-radius: 100px;
+  padding: 0.1rem 0.4rem;
+}
+
+/* ── Discussion link ────────────────────────────────────────────── */
+.discussionLink { display: flex; flex-direction: column; gap: 0.25rem; text-decoration: none; }
+.discussionLink:hover .discussionTitle { color: var(--brand-400); }
+
+/* ── Create Community Modal ─────────────────────────────────────── */
+.modalBackdrop {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+}
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 20px;
+  width: 100%; max-width: 560px;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+  display: flex; flex-direction: column;
+}
+.modalHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.25rem 1.5rem 0;
+}
+.modalTitle { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; }
+.modalClose {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--bg-overlay); border: 1px solid var(--border-subtle);
+  color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+}
+.modalClose:hover { background: var(--bg-overlay); color: var(--text-primary); }
+.modalForm { display: flex; flex-direction: column; gap: 1.1rem; padding: 1.25rem 1.5rem 1.5rem; }
+.modalActions { display: flex; gap: 0.75rem; justify-content: flex-end; padding-top: 0.5rem; }
+
+/* Preview */
+.communityPreview {
+  display: flex; align-items: center; gap: 0.75rem;
+  border: 1px solid; border-radius: 12px; overflow: hidden;
+  padding: 0.75rem 1rem;
+}
+
+/* Form elements */
+.formRow { display: flex; gap: 1rem; flex-wrap: wrap; }
+.formGroup { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; }
+.formLabel { font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.02em; }
+.formInput {
+  width: 100%; padding: 0.55rem 0.75rem;
+  background: var(--bg-overlay); border: 1px solid var(--border-subtle);
+  border-radius: 10px; font-size: 0.875rem; color: var(--text-primary);
+  outline: none; transition: border-color 0.15s;
+}
+.formInput:focus { border-color: var(--brand-400); }
+.formTextarea {
+  width: 100%; padding: 0.6rem 0.75rem;
+  background: var(--bg-overlay); border: 1px solid var(--border-subtle);
+  border-radius: 10px; font-size: 0.875rem; color: var(--text-primary);
+  outline: none; resize: vertical; font-family: inherit; line-height: 1.5;
+  transition: border-color 0.15s;
+}
+.formTextarea:focus { border-color: var(--brand-400); }
+.formHint { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+/* Emoji grid */
+.emojiGrid { display: flex; flex-wrap: wrap; gap: 4px; max-width: 200px; }
+.emojiBtn {
+  width: 32px; height: 32px; border-radius: 8px; font-size: 1rem;
+  background: var(--bg-overlay); border: 1px solid var(--border-subtle);
+  cursor: pointer; transition: all 0.12s; display: flex; align-items: center; justify-content: center;
+}
+.emojiBtn:hover { border-color: var(--brand-400); transform: scale(1.1); }
+.emojiBtnActive { border-color: var(--brand-400); background: rgba(52,143,255,0.15); box-shadow: 0 0 0 2px var(--brand-400); }
+
+/* Color grid */
+.colorGrid { display: flex; flex-wrap: wrap; gap: 6px; }
+.colorBtn {
+  width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; transition: all 0.12s;
+}
+.colorBtn:hover { transform: scale(1.15); }
+.colorBtnActive { border-color: white; box-shadow: 0 0 0 2px currentColor, 0 0 0 4px var(--bg-surface); }
+
+/* Type buttons */
+.typeButtons { display: flex; gap: 0.5rem; }
+.typeBtn {
+  display: flex; align-items: center; gap: 0.35rem;
+  padding: 0.4rem 0.85rem; border-radius: 10px;
+  font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  background: var(--bg-overlay); border: 1px solid var(--border-subtle);
+  color: var(--text-muted); transition: all 0.15s;
+}
+.typeBtn:hover { border-color: var(--brand-400); color: var(--brand-400); }
+.typeBtnActive { background: rgba(52,143,255,0.12); border-color: rgba(52,143,255,0.4); color: var(--brand-400); }
+
+/* Tag input */
+.tagInputRow { display: flex; gap: 0.5rem; }
+.tagList { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.tagChipSmall {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.2rem 0.5rem; border-radius: 100px;
+  background: rgba(52,143,255,0.1); border: 1px solid rgba(52,143,255,0.25);
+  color: var(--brand-400); font-size: 0.72rem; font-weight: 600;
+}
+.tagChipSmall button {
+  background: none; border: none; cursor: pointer;
+  color: inherit; opacity: 0.7; font-size: 0.9rem; line-height: 1;
+  padding: 0; transition: opacity 0.15s;
+}
+.tagChipSmall button:hover { opacity: 1; }
+
+/* Rules */
+.ruleInputRow { display: flex; align-items: center; gap: 0.5rem; }
+.removeRuleBtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  background: var(--bg-overlay); border: 1px solid var(--border-subtle);
+  color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+}
+.removeRuleBtn:hover { color: #f87171; border-color: rgba(239,68,68,0.3); }
+.addRuleBtn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.78rem; color: var(--brand-400); background: none;
+  border: none; cursor: pointer; padding: 0.25rem 0; font-weight: 600;
+  transition: opacity 0.15s;
+}
+.addRuleBtn:hover { opacity: 0.75; }
