@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withRetry } from "@/lib/db";
 import { auth } from "@/auth";
 import slugify from "slugify";
 
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     : { createdAt: "desc" as const };
 
   try {
-    const articles = await prisma.article.findMany({
+    const articles = await withRetry(() => prisma.article.findMany({
       where,
       orderBy,
       take: 30,
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
         author: { select: { name: true, handle: true, image: true } },
         _count: { select: { likes: true } },
       },
-    });
+    }));
     return NextResponse.json(articles);
   } catch (err) {
     console.error("GET /api/articles error:", err);

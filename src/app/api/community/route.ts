@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withRetry } from "@/lib/db";
 import { auth } from "@/auth";
 import slugify from "slugify";
 
@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const tag = searchParams.get("tag")?.trim();
 
   try {
-    const communities = await prisma.community.findMany({
+    const communities = await withRetry(() => prisma.community.findMany({
       orderBy: { createdAt: "asc" },
       where: tag ? { tags: { has: tag } } : undefined,
       include: {
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
           include: { author: { select: { name: true, handle: true } } },
         },
       },
-    });
+    }));
     return NextResponse.json(communities);
   } catch {
     return NextResponse.json({ error: "Failed to fetch communities" }, { status: 500 });

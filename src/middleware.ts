@@ -1,7 +1,11 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-const PROTECTED_PATHS = ["/dashboard", "/reading-list", "/editor", "/settings"];
+// Hard-protected: redirect immediately to signup
+const PROTECTED_PATHS = ["/dashboard", "/reading-list", "/editor", "/settings", "/drafts"];
+
+// Soft-protected: allow viewing but block actions (handled client-side)
+// /article, /community, /profile — guests can read, but not interact
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

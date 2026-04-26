@@ -386,9 +386,9 @@ export default function CommunityPage() {
                       </div>
                     )}
 
-                    {room.threads.length > 0 && (
+                    {(room.threads ?? []).length > 0 && (
                       <div className={styles.previewList}>
-                        {room.threads.map((t) => (
+                        {(room.threads ?? []).map((t) => (
                           <div key={t.id} className={styles.previewItem}>
                             <span className={styles.previewAuthor}>{t.author.name ?? t.author.handle}</span>
                             <span className={styles.previewText}>{t.title}</span>
@@ -474,7 +474,7 @@ export default function CommunityPage() {
       {showCreate && (
         <CreateModal
           onClose={() => setShowCreate(false)}
-          onCreate={(c) => setCommunities(prev => [c, ...prev])}
+          onCreate={(c) => setCommunities(prev => [{ ...c, threads: c.threads ?? [] }, ...prev])}
         />
       )}
     </div>

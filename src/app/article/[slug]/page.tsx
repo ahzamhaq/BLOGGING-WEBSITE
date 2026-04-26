@@ -34,7 +34,7 @@ export default async function ArticlePage({ params }: Props) {
     where: { slug },
     include: {
       author: { select: { id: true, name: true, handle: true, image: true, bio: true } },
-      likes:  { select: { id: true } },
+      _count: { select: { likes: true, comments: true } },
     },
   });
 
@@ -112,7 +112,11 @@ export default async function ArticlePage({ params }: Props) {
         {/* ── Article body ────────────────────────────────────── */}
         <div className={styles.bodyGrid}>
           {/* Like / bookmark sidebar */}
-          <ArticleActions likes={article.likes.length} commentsCount={0} />
+          <ArticleActions
+            articleId={article.id}
+            likes={article._count.likes}
+            commentsCount={article._count.comments}
+          />
 
           {/* Prose — rendered from stored HTML (supports links, images, iframes) */}
           <article

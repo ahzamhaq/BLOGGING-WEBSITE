@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, withRetry } from "@/lib/db";
 import { auth } from "@/auth";
 
 export async function GET() {
@@ -9,7 +9,7 @@ export async function GET() {
   const userId = session.user.id;
 
   try {
-    const [articles, followers, bookmarkCount, views] = await Promise.all([
+    const [articles, followers, bookmarkCount, views] = await withRetry(() => Promise.all([
       prisma.article.findMany({
         where: { authorId: userId },
         include: {
@@ -24,7 +24,7 @@ export async function GET() {
         where: { article: { authorId: userId } },
         select: { readTime: true, createdAt: true },
       }),
-    ]);
+    ]));
 
     const published = articles.filter(a => a.published);
     const totalLikes = published.reduce((sum, a) => sum + a.likes.length, 0);

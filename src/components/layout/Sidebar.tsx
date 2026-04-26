@@ -13,13 +13,12 @@ import { ThemePicker } from "@/components/layout/ThemePicker";
 import { NotificationsDropdown } from "@/components/layout/NotificationsDropdown";
 import styles from "./Sidebar.module.css";
 
-// Small fixed list of communities shown in the sidebar — matches the
-// reference design. When the DB lands these become a fetch.
+// These slugs match the seeded communities in the DB
 const COMMUNITIES = [
-  { slug: "tech-writers",   name: "Tech Writers",    emoji: "💻" },
-  { slug: "design-lab",     name: "Design Lab",      emoji: "🎨" },
-  { slug: "startup-stories",name: "Startup Stories", emoji: "🚀" },
-  { slug: "deep-reads",     name: "Deep Reads",      emoji: "📚" },
+  { slug: "tech",        name: "Tech & Code",    emoji: "💻" },
+  { slug: "design",      name: "Design & UX",    emoji: "🎨" },
+  { slug: "startups",    name: "Startups",        emoji: "🚀" },
+  { slug: "writing",     name: "Writing Craft",   emoji: "✍️" },
 ];
 
 interface NavLink {
@@ -219,7 +218,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 
           <div className={styles.topActions}>
             <ThemePicker />
-            <NotificationsDropdown />
+            {session && <NotificationsDropdown />}
           </div>
         </header>
 

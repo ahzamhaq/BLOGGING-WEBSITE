@@ -2,11 +2,11 @@
 
 import { useState, use, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import {
   MessageSquare, Send, Users, TrendingUp, Pin, ThumbsUp,
   ChevronDown, Hash, Lock, Clock, Eye, Shield, Crown,
-  Settings, UserMinus, Bell, Tag, BarChart2, Flame, Loader2
+  Settings, UserMinus, Bell, Tag, BarChart2, Flame, Loader2, Trash2, Unlock
 } from "lucide-react";
 import toast from "react-hot-toast";
 import styles from "./room.module.css";
@@ -49,6 +49,7 @@ function timeAgo(dateStr: string) {
 
 export default function CommunityRoomPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
+  const router = useRouter();
 
   const [room, setRoom]           = useState<CommunityData | null>(null);
   const [loading, setLoading]     = useState(true);
@@ -165,6 +166,30 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
     toast(data.pinned ? "Thread pinned!" : "Thread unpinned");
   }
 
+  async function handleLock() {
+    if (!room) return;
+    const newType = room.type === "private" ? "public" : "private";
+    const res = await fetch(`/api/community/${slug}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: newType }),
+    });
+    if (res.status === 403) { toast.error("Only owner/moderator can do this"); return; }
+    if (!res.ok) { toast.error("Failed to update"); return; }
+    setRoom(prev => prev ? { ...prev, type: newType } : prev);
+    toast.success(newType === "private" ? "Community locked (private)" : "Community unlocked (open)");
+  }
+
+  async function handleDelete() {
+    if (!room) return;
+    if (!confirm(`Delete "${room.name}" permanently? This cannot be undone.`)) return;
+    const res = await fetch(`/api/community/${slug}`, { method: "DELETE" });
+    if (res.status === 403) { toast.error("Only the owner can delete"); return; }
+    if (!res.ok) { toast.error("Failed to delete community"); return; }
+    toast.success("Community deleted");
+    router.push("/community");
+  }
+
   const visibleThreads = activeTag
     ? threads.filter(t => t.tag === activeTag)
     : [...threads].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
@@ -234,12 +259,24 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
         {showAdmin && (
           <div className={styles.adminPanel}>
             <div className={styles.adminGrid}>
-              <button className={`${styles.adminBtn} ${styles.adminBtnDanger}`} onClick={() => toast("Community locked — coming soon.", { icon: "🔒" })}><Lock size={13} />Lock Community</button>
-              <button className={styles.adminBtn} onClick={() => toast("Manage members — coming soon.", { icon: "👥" })}><Users size={13} />Manage Members</button>
-              <button className={styles.adminBtn} onClick={() => toast.success("Announcement pinned!")}><Pin size={13} />Pin Announcement</button>
-              <button className={styles.adminBtn} onClick={() => toast("Edit community — coming soon.", { icon: "⚙️" })}><Settings size={13} />Edit Community</button>
-              <button className={`${styles.adminBtn} ${styles.adminBtnDanger}`} onClick={() => toast("Ban user — coming soon.", { icon: "🚫" })}><UserMinus size={13} />Ban User</button>
-              <button className={styles.adminBtn} onClick={() => toast("Analytics — coming soon.", { icon: "📊" })}><BarChart2 size={13} />Analytics</button>
+              <button
+                className={`${styles.adminBtn} ${room.type === "private" ? styles.adminBtnActive : ""}`}
+                onClick={handleLock}
+              >
+                {room.type === "private" ? <><Unlock size={13} />Unlock Community</> : <><Lock size={13} />Lock Community</>}
+              </button>
+              <button className={styles.adminBtn} onClick={() => toast("Manage members — coming soon", { icon: "👥" })}>
+                <Users size={13} />Manage Members
+              </button>
+              <button className={styles.adminBtn} onClick={() => toast("Analytics — coming soon", { icon: "📊" })}>
+                <BarChart2 size={13} />Analytics
+              </button>
+              <button
+                className={`${styles.adminBtn} ${styles.adminBtnDanger}`}
+                onClick={handleDelete}
+              >
+                <Trash2 size={13} />Delete Community
+              </button>
             </div>
           </div>
         )}

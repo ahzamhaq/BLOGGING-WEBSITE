@@ -36,7 +36,7 @@ const MOCK: Notif[] = [
 export function NotificationsDropdown() {
   const { data: session } = useSession();
   const [open,  setOpen]  = useState(false);
-  const [notifs, setNotifs] = useState<Notif[]>(MOCK);
+  const [notifs, setNotifs] = useState<Notif[]>([]);
   const [mounted, setMounted] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
@@ -45,14 +45,14 @@ export function NotificationsDropdown() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Load real notifications if session exists
+  // Load real notifications only when authenticated
   useEffect(() => {
-    if (!session?.user) return;
+    if (!session?.user) { setNotifs([]); return; }
     fetch("/api/notifications")
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (Array.isArray(data) && data.length > 0) setNotifs(data); })
-      .catch(() => {/* use mock */});
-  }, [session]);
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => { if (Array.isArray(data)) setNotifs(data); })
+      .catch(() => {});
+  }, [session?.user?.id]);
 
   // Close on outside click
   useEffect(() => {

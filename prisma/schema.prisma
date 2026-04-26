@@ -67,6 +67,9 @@ model Article {
   likes       Like[]
   bookmarks   Bookmark[]
   views       ArticleView[]
+
+  @@index([authorId])
+  @@index([published, createdAt])
 }
 
 model Comment {
@@ -86,6 +89,8 @@ model Comment {
   replies   Comment[] @relation("replies")
 
   likes     Int      @default(0)
+
+  @@index([articleId])
 }
 
 model Like {
@@ -118,6 +123,8 @@ model Follow {
   createdAt   DateTime @default(now())
 
   @@unique([followerId, followingId])
+  @@index([followingId])
+  @@index([followerId])
 }
 
 model Notification {
@@ -130,6 +137,8 @@ model Notification {
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
+
+  @@index([userId, read])
 }
 
 model Community {
@@ -177,6 +186,8 @@ model CommunityThread {
 
   replies     ThreadReply[]
   threadLikes ThreadLike[]
+
+  @@index([communityId, createdAt])
 }
 
 model ThreadReply {
@@ -210,6 +221,9 @@ model ArticleView {
 
   article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([articleId])
+  @@index([userId])
 }
 
 // Daily follower count snapshot for growth chart

@@ -29,6 +29,10 @@ export const metadata: Metadata = {
     description: "A next-generation blogging platform built for serious writers.",
   },
   robots: { index: true, follow: true },
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export const viewport: Viewport = {

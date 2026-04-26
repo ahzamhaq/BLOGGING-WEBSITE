@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Sparkles, Check, TrendingUp, Crown } from "lucide-react";
+import { ArrowRight, Sparkles, TrendingUp } from "lucide-react";
 import styles from "./home.module.css";
 import { auth } from "@/auth";
 import { LandingPage } from "@/components/home/LandingPage";
@@ -31,7 +31,9 @@ export default async function HomePage() {
     where: { published: true },
     orderBy: { createdAt: "desc" },
     take: 6,
-    include: {
+    select: {
+      id: true, slug: true, title: true, subtitle: true, excerpt: true,
+      coverImage: true, tags: true, readTime: true, createdAt: true,
       author: { select: { name: true, handle: true } },
       _count: { select: { likes: true } },
     },
@@ -117,7 +119,11 @@ export default async function HomePage() {
             const coverClass = `cover${String.fromCharCode(65 + (i % 6))}` as keyof typeof styles;
             return (
               <Link key={a.id} href={`/article/${a.slug}`} className={styles.card}>
-                <div className={`${styles.cardCover} ${styles[coverClass] ?? ""}`} />
+                {a.coverImage ? (
+                  <img src={a.coverImage} alt={a.title} className={styles.cardCoverImg} />
+                ) : (
+                  <div className={`${styles.cardCover} ${styles[coverClass] ?? ""}`} />
+                )}
                 <div className={styles.cardBody}>
                   <div className={styles.cardTag} style={{ color: tagColor }}>{tag}</div>
                   <h3 className={styles.cardTitle}>{a.title}</h3>
@@ -136,23 +142,6 @@ export default async function HomePage() {
         </div>
 
         <aside className={styles.rightPanel}>
-          <div className={styles.proCard}>
-            <span className={styles.proBadge}><Crown size={11} /> Pro</span>
-            <h3 className={styles.proTitle}>Pro Membership</h3>
-            <p className={styles.proDesc}>
-              Unlock premium writing tools, monetize your work, and read without limits.
-            </p>
-            <ul className={styles.proList}>
-              <li><Check size={13} /> Ad-free reading everywhere</li>
-              <li><Check size={13} /> Premium fonts &amp; themes</li>
-              <li><Check size={13} /> Tip jar and revenue share</li>
-              <li><Check size={13} /> Offline sync across devices</li>
-            </ul>
-            <Link href="/settings" className={styles.proBtn}>
-              Upgrade Now <ArrowRight size={13} />
-            </Link>
-          </div>
-
           <div className={styles.topicsCard}>
             <h3 className={styles.topicsTitle}><TrendingUp size={13} /> Trending Topics</h3>
             <div className={styles.topicsRow}>
