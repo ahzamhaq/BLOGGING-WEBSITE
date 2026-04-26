@@ -20,7 +20,16 @@
       "Bash(mkdir -p \"c:/Users/HP/OneDrive/Desktop/PROJECTS/Blogging-website/src/app/api/community/[slug]/threads\")",
       "Bash(mkdir -p \"c:/Users/HP/OneDrive/Desktop/PROJECTS/Blogging-website/src/app/api/community/[slug]/threads/[threadId]/replies\")",
       "Bash(mkdir -p \"c:/Users/HP/OneDrive/Desktop/PROJECTS/Blogging-website/src/app/api/community/[slug]/threads/[threadId]/like\")",
-      "Bash(DATABASE_URL=\"postgresql://postgres.evjewzhqdxszkhgkvyjs:HkEhRwzoaWQSwi0r@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres\" npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-community.ts)"
+      "Bash(DATABASE_URL=\"postgresql://postgres.evjewzhqdxszkhgkvyjs:HkEhRwzoaWQSwi0r@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres\" npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-community.ts)",
+      "Bash(test -f /c/Users/HP/OneDrive/Desktop/PROJECTS/Blogging-website/src/app/article/[slug]/ArticleActions.tsx)",
+      "Bash(awk '{print $9, $5}')",
+      "Bash(DATABASE_URL=\"postgresql://postgres.evjewzhqdxszkhgkvyjs:HkEhRwzoaWQSwi0r@aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1\" npx prisma db push)",
+      "Bash(DATABASE_URL=\"postgresql://postgres.evjewzhqdxszkhgkvyjs:HkEhRwzoaWQSwi0r@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres?sslmode=require\" npx prisma db push --skip-generate)",
+      "Bash(DATABASE_URL=\"postgresql://postgres.evjewzhqdxszkhgkvyjs:HkEhRwzoaWQSwi0r@aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require\" npx prisma db push --skip-generate)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:HkEhRwzoaWQSwi0r@db.evjewzhqdxszkhgkvyjs.supabase.co:5432/postgres\" npx prisma db push --skip-generate)",
+      "PowerShell(head)",
+      "PowerShell(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\HP\\\\OneDrive\\\\Desktop\\\\PROJECTS\\\\Blogging-website\\\\public\" -Force)",
+      "PowerShell(Copy-Item \"C:\\\\Users\\\\HP\\\\OneDrive\\\\Desktop\\\\PROJECTS\\\\Blogging-website\\\\src\\\\app\\\\icon.png\" \"C:\\\\Users\\\\HP\\\\OneDrive\\\\Desktop\\\\PROJECTS\\\\Blogging-website\\\\public\\\\icon.png\" -Force)"
     ]
   }
 }
