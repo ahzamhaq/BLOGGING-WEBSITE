@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -28,7 +28,7 @@ interface Article {
 
 type Tab = "drafts" | "published";
 
-export default function DraftsPage() {
+function DraftsContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -287,5 +287,13 @@ export default function DraftsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DraftsPage() {
+  return (
+    <Suspense fallback={<div style={{ display: "flex", justifyContent: "center", padding: "4rem" }} />}>
+      <DraftsContent />
+    </Suspense>
   );
 }
