@@ -17,13 +17,6 @@ export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-// Graceful shutdown — prevents connection pool exhaustion in dev hot-reload
-if (process.env.NODE_ENV === "production") {
-  process.on("beforeExit", async () => {
-    await prisma.$disconnect();
-  });
-}
-
 // Wrapper that retries once on connection failure (handles transient Supabase drops)
 export async function withRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T> {
   try {
