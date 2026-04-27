@@ -6,8 +6,9 @@ import { useSession, signOut } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
 import {
   Feather, Home, Compass, Users, Bookmark, FileText, Globe,
-  PenLine, Search, Menu, X,
-  LayoutDashboard, User as UserIcon, Settings, LogOut, ChevronUp
+  PenLine, Search, Menu,
+  LayoutDashboard, User as UserIcon, Settings, LogOut, ChevronUp,
+  Code2, Palette, Rocket, Pen, Plus
 } from "lucide-react";
 import { ThemePicker } from "@/components/layout/ThemePicker";
 import { NotificationsDropdown } from "@/components/layout/NotificationsDropdown";
@@ -15,10 +16,10 @@ import styles from "./Sidebar.module.css";
 
 // These slugs match the seeded communities in the DB
 const COMMUNITIES = [
-  { slug: "tech",        name: "Tech & Code",    emoji: "💻" },
-  { slug: "design",      name: "Design & UX",    emoji: "🎨" },
-  { slug: "startups",    name: "Startups",        emoji: "🚀" },
-  { slug: "writing",     name: "Writing Craft",   emoji: "✍️" },
+  { slug: "tech",     name: "Tech & Code",   icon: Code2   },
+  { slug: "design",   name: "Design & UX",   icon: Palette },
+  { slug: "startups", name: "Startups",       icon: Rocket  },
+  { slug: "writing",  name: "Writing Craft",  icon: Pen     },
 ];
 
 interface NavLink {
@@ -122,14 +123,14 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 
         <div className={styles.sectionLabel}>Communities</div>
         <div className={styles.communitiesList}>
-          {COMMUNITIES.map((c) => (
-            <Link key={c.slug} href={`/community/${c.slug}`} className={styles.communityItem}>
-              <span className={styles.communityEmoji}>{c.emoji}</span>
-              <span className={styles.communityName}>{c.name}</span>
+          {COMMUNITIES.map(({ slug, name, icon: Icon }) => (
+            <Link key={slug} href={`/community/${slug}`} className={styles.communityItem}>
+              <Icon size={14} strokeWidth={1.75} />
+              <span className={styles.communityName}>{name}</span>
             </Link>
           ))}
           <Link href="/community" className={styles.communityItem}>
-            <span className={styles.communityEmoji}>＋</span>
+            <Plus size={14} strokeWidth={1.75} />
             <span className={styles.communityName}>Explore more</span>
           </Link>
         </div>

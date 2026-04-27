@@ -124,27 +124,26 @@
 .communityItem {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.7rem;
   padding: 0.45rem 0.75rem;
   border-radius: 8px;
   color: var(--text-secondary);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 500;
   text-decoration: none;
   transition: background 0.12s, color 0.12s;
+}
+.communityItem svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: color 0.12s;
 }
 .communityItem:hover {
   background: var(--bg-overlay);
   color: var(--text-primary);
 }
-.communityEmoji {
-  width: 22px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.95rem;
-  flex-shrink: 0;
+.communityItem:hover svg {
+  color: var(--text-secondary);
 }
 .communityName {
   overflow: hidden;
