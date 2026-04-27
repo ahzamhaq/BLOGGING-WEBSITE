@@ -32,13 +32,15 @@
   text-decoration: none;
   letter-spacing: -0.03em;
 }
-.logo svg { color: var(--brand-400); }
+.logo svg { color: var(--brand-400); transition: transform 0.15s; }
 .logo span {
   background: linear-gradient(135deg, var(--brand-400), var(--brand-600));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+.logo:hover { opacity: 0.85; }
+.logo:hover svg { transform: rotate(-8deg) scale(1.1); }
 
 /* ── Section label ───────────────────────────────────────────── */
 .sectionLabel {
