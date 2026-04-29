@@ -1,0 +1,108 @@
+.section {
+  padding: 7rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  background: var(--bg-base);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.blobLeft {
+  position: absolute;
+  top: -30%;
+  left: -15%;
+  width: 700px;
+  height: 700px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(52,143,255,0.1) 0%, transparent 65%);
+  filter: blur(80px);
+  pointer-events: none;
+}
+.blobRight {
+  position: absolute;
+  bottom: -30%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(167,139,250,0.08) 0%, transparent 65%);
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 700px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.75rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(52, 143, 255, 0.1);
+  border: 1px solid rgba(52, 143, 255, 0.25);
+  border-radius: 100px;
+  padding: 0.4rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--brand-400);
+}
+
+.title {
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  max-width: 520px;
+}
+
+.features {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 100px;
+  padding: 0.4rem 0.875rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.feature svg { color: var(--brand-400); }
+
+.ctas {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.fine {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 480px) {
+  .ctas { flex-direction: column; width: 100%; }
+  .ctas .btn { width: 100%; justify-content: center; }
+}

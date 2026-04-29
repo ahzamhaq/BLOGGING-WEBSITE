@@ -1,0 +1,52 @@
+.page { min-height: 100vh; padding-bottom: 5rem; }
+
+.header {
+  padding: 4rem 1.5rem 3rem;
+  text-align: center;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.title { font-size: clamp(2rem, 4vw, 3rem); font-weight: 900; letter-spacing: -0.04em; }
+.subtitle { font-size: 1rem; color: var(--text-secondary); margin-top: 0.5rem; }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 3rem 1.5rem; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.topicCard {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 1.25rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.topicCard::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--color);
+  border-radius: 14px 0 0 14px;
+}
+.topicCard:hover {
+  border-color: var(--color, var(--border-default));
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+.topicEmoji { font-size: 1.5rem; flex-shrink: 0; }
+.topicName { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+.topicCount { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+@media (max-width: 640px) {
+  .grid { grid-template-columns: 1fr 1fr; }
+}

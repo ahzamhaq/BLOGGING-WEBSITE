@@ -1,0 +1,201 @@
+/* NotificationsDropdown.module.css */
+
+/* ── Trigger button ────────────────────────────────────────── */
+.trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.trigger:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg-base);
+}
+
+/* ── Dropdown panel ────────────────────────────────────────── */
+.dropdown {
+  z-index: 9999;
+  width: 360px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12);
+  overflow: hidden;
+  animation: dropIn 0.15s ease;
+}
+
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1.125rem 0.625rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.headerTitle {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.markAllBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: transparent;
+  border: none;
+  color: var(--brand-400);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+.markAllBtn:hover { background: rgba(52,143,255,0.08); }
+
+/* ── List ──────────────────────────────────────────────────── */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0.375rem 0;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.itemLink {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1.125rem;
+  transition: background 0.12s;
+  cursor: pointer;
+  position: relative;
+}
+.item:hover { background: var(--bg-elevated); }
+
+.unread {
+  background: rgba(52,143,255,0.04);
+}
+.unread::before {
+  content: "";
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-400);
+}
+
+.icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.1rem;
+  background: var(--bg-overlay);
+  color: var(--text-secondary);
+}
+.icon_like    { background: rgba(239,68,68,0.1);  color: #ef4444; }
+.icon_follow  { background: rgba(52,143,255,0.1); color: var(--brand-400); }
+.icon_comment { background: rgba(34,197,94,0.1);  color: #22c55e; }
+.icon_reply   { background: rgba(168,85,247,0.1); color: #a855f7; }
+
+.itemContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.message {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  line-height: 1.45;
+  margin-bottom: 0.2rem;
+}
+
+.time {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.dismissBtn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s;
+}
+.item:hover .dismissBtn { opacity: 1; }
+.dismissBtn:hover { color: var(--text-primary); }
+
+/* ── Footer ────────────────────────────────────────────────── */
+.footer {
+  border-top: 1px solid var(--border-subtle);
+  padding: 0.625rem 1.125rem;
+}
+
+.footerLink {
+  font-size: 0.8rem;
+  color: var(--brand-400);
+  text-decoration: none;
+  display: block;
+  text-align: center;
+  padding: 0.3rem;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+.footerLink:hover { background: rgba(52,143,255,0.06); }
+
+/* ── Empty state ───────────────────────────────────────────── */
+.empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  padding: 2rem 1rem;
+}

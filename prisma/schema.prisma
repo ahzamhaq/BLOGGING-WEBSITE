@@ -1,0 +1,237 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  handle        String    @unique
+  bio           String?
+  image         String?
+  password      String?   // null for OAuth-only accounts
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  articles        Article[]
+  comments        Comment[]
+  likes           Like[]
+  bookmarks       Bookmark[]
+  followers       Follow[]  @relation("following")
+  following       Follow[]  @relation("follower")
+  notifications   Notification[]
+  resetTokens     PasswordResetToken[]
+  communityMemberships CommunityMember[]
+  communityThreads     CommunityThread[]
+  threadReplies        ThreadReply[]
+  threadLikes          ThreadLike[]
+  articleViews         ArticleView[]
+  followerSnapshots    FollowerSnapshot[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+}
+
+model Article {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  subtitle    String?
+  content     String   @db.Text
+  excerpt     String?
+  coverImage  String?
+  published   Boolean  @default(false)
+  tags        String[]
+  readTime    Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    String
+
+  comments    Comment[]
+  likes       Like[]
+  bookmarks   Bookmark[]
+  views       ArticleView[]
+
+  @@index([authorId])
+  @@index([published, createdAt])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId String
+
+  parent    Comment? @relation("replies", fields: [parentId], references: [id])
+  parentId  String?
+  replies   Comment[] @relation("replies")
+
+  likes     Int      @default(0)
+
+  @@index([articleId])
+}
+
+model Like {
+  id        String  @id @default(cuid())
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId String
+
+  @@unique([userId, articleId])
+}
+
+model Bookmark {
+  id        String  @id @default(cuid())
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, articleId])
+}
+
+model Follow {
+  id          String @id @default(cuid())
+  follower    User   @relation("follower",  fields: [followerId],  references: [id], onDelete: Cascade)
+  followerId  String
+  following   User   @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId String
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@index([followerId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String   // "like" | "comment" | "follow" | "reply"
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  @@index([userId, read])
+}
+
+model Community {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  desc        String
+  emoji       String
+  color       String   @default("#348fff")
+  type        String   @default("public") // "public" | "request" | "private"
+  rules       String[]
+  tags        String[]
+  createdAt   DateTime @default(now())
+
+  members     CommunityMember[]
+  threads     CommunityThread[]
+}
+
+model CommunityMember {
+  id          String    @id @default(cuid())
+  role        String    @default("member") // "owner" | "moderator" | "member"
+  joinedAt    DateTime  @default(now())
+
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  communityId String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+
+  @@unique([communityId, userId])
+}
+
+model CommunityThread {
+  id          String   @id @default(cuid())
+  title       String
+  body        String   @db.Text
+  tag         String   @default("discussion")
+  pinned      Boolean  @default(false)
+  likes       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  communityId String
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    String
+
+  replies     ThreadReply[]
+  threadLikes ThreadLike[]
+
+  @@index([communityId, createdAt])
+}
+
+model ThreadReply {
+  id        String   @id @default(cuid())
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  thread    CommunityThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  threadId  String
+  author    User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+}
+
+model ThreadLike {
+  id        String @id @default(cuid())
+  thread    CommunityThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  threadId  String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  @@unique([threadId, userId])
+}
+
+// Tracks each article page view (for read-time analytics)
+model ArticleView {
+  id        String   @id @default(cuid())
+  articleId String
+  userId    String?  // null for anonymous
+  readTime  Int      @default(0) // seconds actually spent reading
+  createdAt DateTime @default(now())
+
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([articleId])
+  @@index([userId])
+}
+
+// Daily follower count snapshot for growth chart
+model FollowerSnapshot {
+  id        String   @id @default(cuid())
+  userId    String
+  count     Int
+  date      DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
