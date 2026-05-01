@@ -2,14 +2,14 @@
 
 /* ── Banner ──────────────────────────────────────────────────────── */
 .banner {
-  height: 220px;
+  height: 200px;
   position: relative;
   overflow: hidden;
 }
 .bannerOverlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, transparent 40%, rgba(10,14,26,0.7) 100%);
+  background: linear-gradient(to bottom, transparent 50%, rgba(10,14,26,0.55) 100%);
 }
 
 /* ── Container ───────────────────────────────────────────────────── */
@@ -19,26 +19,29 @@
   padding: 0 1.5rem 5rem;
 }
 
-/* ── Profile header (avatar + actions) ──────────────────────────── */
-.profileHeader {
+/* ── Profile hero (avatar + identity + actions as one block) ─────── */
+.profileHero {
+  margin-bottom: 1.75rem;
+}
+
+.avatarRow {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-top: -52px;
-  margin-bottom: 1.25rem;
   gap: 1rem;
-  flex-wrap: wrap;
+  margin-bottom: 1rem;
 }
 
 .avatarRing {
-  width: 104px;
-  height: 104px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   border: 4px solid var(--bg-base);
   background: var(--bg-base);
   flex-shrink: 0;
   overflow: hidden;
   box-shadow: 0 0 0 1px var(--border-default);
+  margin-top: -60px;
 }
 .avatar {
   width: 100%;
@@ -64,32 +67,31 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding-bottom: 0.25rem;
+  padding-top: 1rem;
 }
 
 /* ── Identity ────────────────────────────────────────────────────── */
 .identity {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 1.5rem;
+  gap: 0.3rem;
 }
 .displayName {
-  font-size: clamp(1.5rem, 3vw, 2.1rem);
+  font-size: clamp(1.4rem, 3vw, 2rem);
   font-weight: 900;
   letter-spacing: -0.03em;
   color: var(--text-primary);
   line-height: 1.15;
 }
-.handle { font-size: 0.95rem; color: var(--text-muted); }
+.handle { font-size: 0.9rem; color: var(--text-muted); }
 .bio {
   font-size: 0.95rem;
   line-height: 1.7;
   color: var(--text-secondary);
   max-width: 560px;
-  margin-top: 0.25rem;
+  margin-top: 0.4rem;
 }
-.meta { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.25rem; }
+.meta { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.4rem; }
 .metaItem {
   display: flex;
   align-items: center;
@@ -334,10 +336,11 @@ a.statItem:hover .statNum { color: var(--brand-400); }
 
 /* ── Responsive ──────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .banner { height: 160px; }
-  .profileHeader { margin-top: -40px; }
-  .avatarRing { width: 80px; height: 80px; }
+  .banner { height: 140px; }
+  .avatarRing { width: 88px; height: 88px; margin-top: -44px; }
   .avatarInitials { font-size: 1.75rem; }
+  .headerActions { padding-top: 0.75rem; }
   .articleCover { display: none; }
   .container { padding: 0 1rem 4rem; }
+  .displayName { font-size: 1.35rem; }
 }

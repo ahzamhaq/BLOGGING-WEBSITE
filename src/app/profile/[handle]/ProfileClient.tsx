@@ -64,40 +64,41 @@ export function ProfileClient({
       </div>
 
       <div className={styles.container}>
-        {/* ── Profile header ─────────────────────────────────── */}
-        <div className={styles.profileHeader}>
-          <div className={styles.avatarRing}>
-            {image ? (
-              <img src={image} alt={displayName} className={styles.avatar} />
-            ) : (
-              <div className={styles.avatarInitials} style={{ background: avatarGradient }}>
-                {initials}
-              </div>
-            )}
+        {/* ── Profile hero ───────────────────────────────────── */}
+        <div className={styles.profileHero}>
+          <div className={styles.avatarRow}>
+            <div className={styles.avatarRing}>
+              {image ? (
+                <img src={image} alt={displayName} className={styles.avatar} />
+              ) : (
+                <div className={styles.avatarInitials} style={{ background: avatarGradient }}>
+                  {initials}
+                </div>
+              )}
+            </div>
+
+            <div className={styles.headerActions}>
+              {sessionReady && (isOwn ? (
+                <Link href="/settings" className="btn btn-ghost btn-sm" aria-label="Edit profile">
+                  <Settings size={15} />
+                  Edit Profile
+                </Link>
+              ) : (
+                <FollowButton handle={handle} initialFollowers={followers} />
+              ))}
+            </div>
           </div>
 
-          <div className={styles.headerActions}>
-            {sessionReady && (isOwn ? (
-              <Link href="/settings" className="btn btn-ghost btn-sm" aria-label="Edit profile">
-                <Settings size={15} />
-                Edit Profile
-              </Link>
-            ) : (
-              <FollowButton handle={handle} initialFollowers={followers} />
-            ))}
-          </div>
-        </div>
-
-        {/* ── Identity ───────────────────────────────────────── */}
-        <div className={styles.identity}>
-          <h1 className={styles.displayName}>{displayName}</h1>
-          <p className={styles.handle}>@{handle}</p>
-          {bio && <p className={styles.bio}>{bio}</p>}
-          <div className={styles.meta}>
-            <span className={styles.metaItem}>
-              <Calendar size={13} />
-              Joined {format(new Date(createdAt), "MMMM yyyy")}
-            </span>
+          <div className={styles.identity}>
+            <h1 className={styles.displayName}>{displayName}</h1>
+            <p className={styles.handle}>@{handle}</p>
+            {bio && <p className={styles.bio}>{bio}</p>}
+            <div className={styles.meta}>
+              <span className={styles.metaItem}>
+                <Calendar size={13} />
+                Joined {format(new Date(createdAt), "MMMM yyyy")}
+              </span>
+            </div>
           </div>
         </div>
 

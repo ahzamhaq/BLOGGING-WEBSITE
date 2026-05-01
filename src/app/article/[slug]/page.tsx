@@ -8,8 +8,9 @@ import { ArticleActions } from "./ArticleActions";
 import { Comments } from "./Comments";
 import { FollowButton } from "@/components/FollowButton";
 import { ShareModal } from "@/components/ShareModal";
-import { TextToSpeech } from "@/components/article/TextToSpeech";
+import { TTSReader } from "@/components/article/TTSReader";
 import { ReadTimeTracker } from "@/components/article/ReadTimeTracker";
+import { ReadingProgress } from "@/components/article/ReadingProgress";
 import { prisma } from "@/lib/db";
 
 interface Props { params: Promise<{ slug: string }> }
@@ -49,6 +50,7 @@ export default async function ArticlePage({ params }: Props) {
 
   return (
     <div className={styles.page}>
+      <ReadingProgress />
       <div className={styles.container}>
 
         {/* ── Header ─────────────────────────────────────────── */}
@@ -91,11 +93,6 @@ export default async function ArticlePage({ params }: Props) {
         {/* ── Read-time tracker (fires on leave) ─────────────── */}
         <ReadTimeTracker articleId={article.id} />
 
-        {/* ── Text-to-speech ─────────────────────────────────── */}
-        <div style={{ margin: "0 0 1rem" }}>
-          <TextToSpeech content={article.content} />
-        </div>
-
         {/* ── Cover image or accent bar ───────────────────────── */}
         {article.coverImage ? (
           <img
@@ -112,9 +109,8 @@ export default async function ArticlePage({ params }: Props) {
           </div>
         )}
 
-        {/* ── Article body ────────────────────────────────────── */}
+        {/* ── Article body with built-in TTS reader ───────────── */}
         <div className={styles.bodyGrid}>
-          {/* Like / bookmark sidebar */}
           <ArticleActions
             articleId={article.id}
             slug={article.slug}
@@ -123,11 +119,9 @@ export default async function ArticlePage({ params }: Props) {
             commentsCount={article._count.comments}
           />
 
-          {/* Prose — rendered from stored HTML (supports links, images, iframes) */}
-          <article
-            className="prose"
-            dangerouslySetInnerHTML={{ __html: article.content }}
-          />
+          <article>
+            <TTSReader html={article.content} />
+          </article>
         </div>
 
         {/* ── Author card ─────────────────────────────────────── */}
