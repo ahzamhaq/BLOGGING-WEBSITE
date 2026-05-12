@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -47,21 +46,27 @@ model PasswordResetToken {
 }
 
 model Article {
-  id          String   @id @default(cuid())
-  slug        String   @unique
+  id          String    @id @default(cuid())
+  slug        String    @unique
   title       String
   subtitle    String?
-  content     String   @db.Text
+  content     String    @db.Text
   excerpt     String?
   coverImage  String?
-  published   Boolean  @default(false)
+  published   Boolean   @default(false)
   tags        String[]
-  readTime    Int      @default(1)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  readTime    Int       @default(1)
+  scheduledFor DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   authorId    String
+
+  // Reply-as-post: an article can reply to another article
+  parentArticle   Article?  @relation("ArticleReplies", fields: [parentArticleId], references: [id], onDelete: SetNull)
+  parentArticleId String?
+  replyArticles   Article[] @relation("ArticleReplies")
 
   comments    Comment[]
   likes       Like[]
@@ -70,6 +75,8 @@ model Article {
 
   @@index([authorId])
   @@index([published, createdAt])
+  @@index([parentArticleId])
+  @@index([scheduledFor])
 }
 
 model Comment {

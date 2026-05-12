@@ -9,6 +9,19 @@ export async function GET(req: NextRequest) {
   const filter = searchParams.get("filter") ?? "latest";
   const q = searchParams.get("q")?.trim() ?? "";
 
+  // Lazy-publish any scheduled posts whose time has arrived (cron-free approach)
+  try {
+    await prisma.article.updateMany({
+      where: {
+        published: false,
+        scheduledFor: { lte: new Date() },
+      },
+      data: { published: true, scheduledFor: null },
+    });
+  } catch (err) {
+    console.warn("Scheduled publish sweep failed:", err);
+  }
+
   const where = {
     published: true,
     ...(q ? {
@@ -55,10 +68,28 @@ export async function POST(req: NextRequest) {
     const authorId = session.user.id;
 
     const body = await req.json();
-    const { title, subtitle, content, tags, coverImage, published } = body;
+    const { title, subtitle, content, tags, coverImage, published, parentArticleId, scheduledFor } = body;
 
     if (!title?.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
+    }
+
+    // Validate scheduled date if provided
+    let scheduledForDate: Date | null = null;
+    if (scheduledFor) {
+      const d = new Date(scheduledFor);
+      if (isNaN(d.getTime())) {
+        return NextResponse.json({ error: "Invalid scheduled date" }, { status: 400 });
+      }
+      scheduledForDate = d;
+    }
+
+    // Validate parent article if provided
+    if (parentArticleId) {
+      const parent = await prisma.article.findUnique({ where: { id: parentArticleId } });
+      if (!parent || !parent.published) {
+        return NextResponse.json({ error: "Parent article not found" }, { status: 404 });
+      }
     }
 
     // Verify the user actually exists in DB (in case session is stale)
@@ -78,6 +109,10 @@ export async function POST(req: NextRequest) {
     const plainText = (content ?? "").replace(/<[^>]*>/g, "");
     const readTime = Math.max(1, Math.ceil(plainText.split(/\s+/).filter(Boolean).length / 200));
 
+    // Scheduled posts are stored as unpublished until the schedule fires
+    const isScheduled = !!scheduledForDate && scheduledForDate.getTime() > Date.now();
+    const finalPublished = isScheduled ? false : (published ?? false);
+
     const article = await prisma.article.create({
       data: {
         title:      title.trim(),
@@ -85,7 +120,9 @@ export async function POST(req: NextRequest) {
         content:    content            ?? "",
         tags:       Array.isArray(tags) ? tags : [],
         coverImage: coverImage         ?? null,
-        published:  published          ?? false,
+        published:  finalPublished,
+        scheduledFor: isScheduled ? scheduledForDate : null,
+        parentArticleId: parentArticleId ?? null,
         authorId,
         slug,
         readTime,

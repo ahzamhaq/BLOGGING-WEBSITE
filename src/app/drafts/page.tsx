@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   FileText, Globe, PenLine, Clock, Heart, MessageCircle,
-  Trash2, Edit3, Eye, Search, Filter, RefreshCw, BookOpen
+  Trash2, Edit3, Eye, Search, RefreshCw, BookOpen, Calendar, Send
 } from "lucide-react";
 import toast from "react-hot-toast";
 import styles from "./drafts.module.css";
@@ -23,19 +23,22 @@ interface Article {
   published: boolean;
   tags: string[];
   readTime: number;
+  scheduledFor?: string | null;
+  parentArticleId?: string | null;
   createdAt: string;
   updatedAt: string;
   _count: { likes: number; comments: number };
 }
 
-type Tab = "drafts" | "published";
+type Tab = "drafts" | "scheduled" | "published";
 
 function DraftsContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const initialTab = (searchParams.get("tab") as Tab) ?? "drafts";
+  const tabParam = searchParams.get("tab");
+  const initialTab: Tab = tabParam === "scheduled" || tabParam === "published" ? tabParam : "drafts";
   const [tab, setTab]             = useState<Tab>(initialTab);
   const [articles, setArticles]   = useState<Article[]>([]);
   const [loading, setLoading]     = useState(true);
@@ -67,6 +70,62 @@ function DraftsContent() {
   const switchTab = (t: Tab) => {
     setTab(t);
     router.replace(`/drafts?tab=${t}`, { scroll: false });
+  };
+
+  const handlePublishNow = async (id: string) => {
+    if (!confirm("Publish this article right now?")) return;
+    try {
+      const res = await fetch(`/api/articles/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ published: true, clearSchedule: true }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success("Article published");
+      load(tab);
+    } catch {
+      toast.error("Failed to publish");
+    }
+  };
+
+  const handleReschedule = async (id: string, current: string | null) => {
+    const initial = current ? new Date(current).toISOString().slice(0, 16) : "";
+    const value = window.prompt("Enter new schedule (YYYY-MM-DDTHH:MM, your local time):", initial);
+    if (value === null) return;
+    if (!value.trim()) return;
+    const d = new Date(value);
+    if (isNaN(d.getTime()) || d.getTime() <= Date.now()) {
+      toast.error("Please pick a valid future date and time");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/articles/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduledFor: d.toISOString() }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success(`Rescheduled to ${d.toLocaleString()}`);
+      load(tab);
+    } catch {
+      toast.error("Failed to reschedule");
+    }
+  };
+
+  const handleCancelSchedule = async (id: string) => {
+    if (!confirm("Cancel scheduled publish? The article will move back to Drafts.")) return;
+    try {
+      const res = await fetch(`/api/articles/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clearSchedule: true, published: false }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success("Schedule cancelled");
+      load(tab);
+    } catch {
+      toast.error("Failed to cancel schedule");
+    }
   };
 
   const handleDelete = async (id: string, title: string) => {
@@ -133,6 +192,18 @@ function DraftsContent() {
         </button>
         <button
           role="tab"
+          aria-selected={tab === "scheduled"}
+          className={`${styles.tab} ${tab === "scheduled" ? styles.tabActive : ""}`}
+          onClick={() => switchTab("scheduled")}
+        >
+          <Calendar size={15} />
+          Scheduled
+          {tab === "scheduled" && !loading && (
+            <span className={styles.tabCount}>{filtered.length}</span>
+          )}
+        </button>
+        <button
+          role="tab"
           aria-selected={tab === "published"}
           className={`${styles.tab} ${tab === "published" ? styles.tabActive : ""}`}
           onClick={() => switchTab("published")}
@@ -181,13 +252,15 @@ function DraftsContent() {
       ) : filtered.length === 0 ? (
         <div className={styles.empty}>
           <div className={styles.emptyIcon}>
-            {tab === "drafts" ? <FileText size={48} /> : <Globe size={48} />}
+            {tab === "drafts" ? <FileText size={48} /> : tab === "scheduled" ? <Calendar size={48} /> : <Globe size={48} />}
           </div>
           <h2 className={styles.emptyTitle}>
             {search
               ? "No articles match your search"
               : tab === "drafts"
               ? "No drafts yet"
+              : tab === "scheduled"
+              ? "No scheduled posts"
               : "Nothing published yet"}
           </h2>
           <p className={styles.emptyText}>
@@ -195,6 +268,8 @@ function DraftsContent() {
               ? "Try a different search term."
               : tab === "drafts"
               ? "Start writing and save as draft — it'll appear here."
+              : tab === "scheduled"
+              ? "Schedule a post from the publish dialog and it'll show up here, ready to go live automatically."
               : "Publish an article to share it with the world."}
           </p>
           {!search && (
@@ -215,12 +290,29 @@ function DraftsContent() {
               )}
               <div className={styles.cardBody}>
                 <div className={styles.cardMeta}>
-                  <span className={`${styles.statusBadge} ${article.published ? styles.statusPublished : styles.statusDraft}`}>
-                    {article.published ? <Globe size={10} /> : <FileText size={10} />}
-                    {article.published ? "Published" : "Draft"}
-                  </span>
+                  {article.scheduledFor && !article.published ? (
+                    <span
+                      className={styles.statusBadge}
+                      style={{
+                        background: "rgba(245, 158, 11, 0.12)",
+                        color: "#f59e0b",
+                        border: "1px solid rgba(245,158,11,0.3)",
+                      }}
+                    >
+                      <Calendar size={10} /> Scheduled
+                    </span>
+                  ) : (
+                    <span className={`${styles.statusBadge} ${article.published ? styles.statusPublished : styles.statusDraft}`}>
+                      {article.published ? <Globe size={10} /> : <FileText size={10} />}
+                      {article.published ? "Published" : "Draft"}
+                    </span>
+                  )}
                   <span className={styles.metaDot}>·</span>
-                  <span className={styles.metaDate}>{fmt(article.updatedAt)}</span>
+                  <span className={styles.metaDate}>
+                    {article.scheduledFor && !article.published
+                      ? `Goes live ${new Date(article.scheduledFor).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+                      : fmt(article.updatedAt)}
+                  </span>
                   {article.readTime > 0 && (
                     <>
                       <span className={styles.metaDot}>·</span>
@@ -257,6 +349,34 @@ function DraftsContent() {
                     </span>
                   </div>
                   <div className={styles.cardActions}>
+                    {article.scheduledFor && !article.published && (
+                      <>
+                        <button
+                          className={`btn btn-ghost btn-sm ${styles.actionBtn}`}
+                          onClick={() => handlePublishNow(article.id)}
+                          title="Publish immediately"
+                          type="button"
+                        >
+                          <Send size={13} /> Publish Now
+                        </button>
+                        <button
+                          className={`btn btn-ghost btn-sm ${styles.actionBtn}`}
+                          onClick={() => handleReschedule(article.id, article.scheduledFor ?? null)}
+                          title="Reschedule"
+                          type="button"
+                        >
+                          <Calendar size={13} /> Reschedule
+                        </button>
+                        <button
+                          className={`btn btn-ghost btn-sm ${styles.actionBtn}`}
+                          onClick={() => handleCancelSchedule(article.id)}
+                          title="Cancel schedule"
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
                     {article.published && (
                       <Link
                         href={`/article/${article.slug}`}

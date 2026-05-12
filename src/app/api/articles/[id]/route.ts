@@ -11,7 +11,10 @@ export async function GET(
     const { id } = await params;
     const article = await prisma.article.findUnique({
       where: { id },
-      include: { author: { select: { id: true, name: true, handle: true, image: true, bio: true } } },
+      include: {
+        author: { select: { id: true, name: true, handle: true, image: true, bio: true } },
+        parentArticle: { select: { id: true, slug: true, title: true, author: { select: { name: true, handle: true } } } },
+      },
     });
     if (!article) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(article);
@@ -33,7 +36,18 @@ export async function PUT(
 
     const { id } = await params;
     const body = await req.json();
-    const { title, subtitle, content, tags, coverImage, published } = body;
+    const { title, subtitle, content, tags, coverImage, published, scheduledFor, clearSchedule } = body;
+
+    let scheduledForDate: Date | null | undefined = undefined;
+    if (clearSchedule) {
+      scheduledForDate = null;
+    } else if (scheduledFor) {
+      const d = new Date(scheduledFor);
+      if (isNaN(d.getTime())) {
+        return NextResponse.json({ error: "Invalid scheduled date" }, { status: 400 });
+      }
+      scheduledForDate = d;
+    }
 
     // Confirm article belongs to this user
     const existing = await prisma.article.findUnique({ where: { id } });
@@ -55,6 +69,10 @@ export async function PUT(
     const plainText = ((content ?? existing.content) ?? "").replace(/<[^>]*>/g, "");
     const readTime = Math.max(1, Math.ceil(plainText.split(/\s+/).filter(Boolean).length / 200));
 
+    // If scheduling in the future, force unpublished until the schedule fires
+    const isScheduled = scheduledForDate instanceof Date && scheduledForDate.getTime() > Date.now();
+    const finalPublished = isScheduled ? false : (published ?? existing.published);
+
     const updated = await prisma.article.update({
       where: { id },
       data: {
@@ -63,7 +81,8 @@ export async function PUT(
         content:    content    ?? existing.content,
         tags:       Array.isArray(tags) ? tags : existing.tags,
         coverImage: coverImage !== undefined ? (coverImage ?? null) : existing.coverImage,
-        published:  published  ?? existing.published,
+        published:  finalPublished,
+        scheduledFor: scheduledForDate !== undefined ? scheduledForDate : existing.scheduledFor,
         slug,
         readTime,
         excerpt:    plainText.slice(0, 200) || existing.excerpt,

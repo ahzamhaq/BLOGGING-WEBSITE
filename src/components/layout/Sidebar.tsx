@@ -6,7 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
 import {
   Feather, Home, Compass, Users, Bookmark, FileText, Globe,
-  PenLine, Search, Menu,
+  PenLine, Search, Menu, History, Calendar,
   LayoutDashboard, User as UserIcon, Settings, LogOut, ChevronUp,
   Code2, Palette, Rocket, Pen, Plus
 } from "lucide-react";
@@ -30,12 +30,14 @@ interface NavLink {
 }
 
 const MAIN_LINKS: NavLink[] = [
-  { href: "/",             label: "Home",         icon: Home      },
-  { href: "/explore",      label: "Discover",     icon: Compass   },
-  { href: "/community",    label: "Rooms",        icon: Users     },
-  { href: "/reading-list", label: "Bookmarks",    icon: Bookmark  },
-  { href: "/drafts",       label: "Drafts",       icon: FileText  },
-  { href: "/drafts?tab=published", label: "Publications", icon: Globe },
+  { href: "/",                  label: "Home",            icon: Home      },
+  { href: "/explore",           label: "Discover",        icon: Compass   },
+  { href: "/community",         label: "Rooms",           icon: Users     },
+  { href: "/reading-list",      label: "Bookmarks",       icon: Bookmark  },
+  { href: "/recently-viewed",   label: "Recently Viewed", icon: History   },
+  { href: "/drafts",            label: "Drafts",          icon: FileText  },
+  { href: "/drafts?tab=scheduled", label: "Scheduled",    icon: Calendar  },
+  { href: "/drafts?tab=published", label: "Publications", icon: Globe     },
 ];
 
 export function Sidebar({ children }: { children: React.ReactNode }) {
@@ -71,9 +73,12 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
     if (hrefQuery) {
       return pathname === hrefPath && typeof window !== "undefined" && window.location.search.includes(hrefQuery);
     }
-    // For /drafts, only highlight if NOT on the published tab
+    // For /drafts (Drafts link), only highlight when tab is drafts (or no tab)
     if (hrefPath === "/drafts") {
-      return pathname === "/drafts" && (typeof window === "undefined" || !window.location.search.includes("tab=published"));
+      if (pathname !== "/drafts") return false;
+      if (typeof window === "undefined") return true;
+      const s = window.location.search;
+      return !s.includes("tab=published") && !s.includes("tab=scheduled");
     }
     return pathname === hrefPath || pathname.startsWith(hrefPath + "/");
   }

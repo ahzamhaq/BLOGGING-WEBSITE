@@ -11,6 +11,9 @@ import { ShareModal } from "@/components/ShareModal";
 import { TTSReader } from "@/components/article/TTSReader";
 import { ReadTimeTracker } from "@/components/article/ReadTimeTracker";
 import { ReadingProgress } from "@/components/article/ReadingProgress";
+import { RecentlyViewedTracker } from "@/components/article/RecentlyViewedTracker";
+import { ParentArticleBanner } from "@/components/article/ParentArticleBanner";
+import { ReplyThread } from "@/components/article/ReplyThread";
 import { prisma } from "@/lib/db";
 
 interface Props { params: Promise<{ slug: string }> }
@@ -36,6 +39,13 @@ export default async function ArticlePage({ params }: Props) {
     where: { slug },
     include: {
       author: { select: { id: true, name: true, handle: true, image: true, bio: true } },
+      parentArticle: {
+        select: {
+          slug: true,
+          title: true,
+          author: { select: { name: true, handle: true } },
+        },
+      },
       _count: { select: { likes: true, comments: true } },
     },
   });
@@ -55,6 +65,9 @@ export default async function ArticlePage({ params }: Props) {
 
         {/* ── Header ─────────────────────────────────────────── */}
         <header className={styles.header}>
+          {article.parentArticle && (
+            <ParentArticleBanner parent={article.parentArticle} />
+          )}
           {primaryTag && (
             <Link
               href={`/topics/${primaryTag.toLowerCase()}`}
@@ -92,6 +105,19 @@ export default async function ArticlePage({ params }: Props) {
 
         {/* ── Read-time tracker (fires on leave) ─────────────── */}
         <ReadTimeTracker articleId={article.id} />
+
+        {/* ── Recently viewed tracker (localStorage) ─────────── */}
+        <RecentlyViewedTracker
+          article={{
+            id: article.id,
+            slug: article.slug,
+            title: article.title,
+            coverImage: article.coverImage,
+            readTime: article.readTime,
+            authorName: article.author.name ?? article.author.handle,
+            authorHandle: article.author.handle,
+          }}
+        />
 
         {/* ── Cover image or accent bar ───────────────────────── */}
         {article.coverImage ? (
@@ -140,6 +166,9 @@ export default async function ArticlePage({ params }: Props) {
             <FollowButton handle={article.author.handle} size="sm" />
           </div>
         </div>
+
+        {/* ── Reply Posts (threaded) ──────────────────────────── */}
+        <ReplyThread articleId={article.id} articleTitle={article.title} />
 
         {/* ── Comments ────────────────────────────────────────── */}
         <Comments articleId={article.id} />

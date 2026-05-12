@@ -13,8 +13,9 @@ export async function GET(req: NextRequest) {
     const filter = req.nextUrl.searchParams.get("filter") ?? "all";
 
     const where: Record<string, unknown> = { authorId: session.user.id };
-    if (filter === "drafts")    where.published = false;
+    if (filter === "drafts")    { where.published = false; where.scheduledFor = null; }
     if (filter === "published") where.published = true;
+    if (filter === "scheduled") { where.published = false; where.scheduledFor = { not: null }; }
 
     const articles = await prisma.article.findMany({
       where,
@@ -29,6 +30,8 @@ export async function GET(req: NextRequest) {
         published: true,
         tags: true,
         readTime: true,
+        scheduledFor: true,
+        parentArticleId: true,
         createdAt: true,
         updatedAt: true,
         _count: { select: { likes: true, comments: true } },

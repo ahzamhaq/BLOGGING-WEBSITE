@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -24,7 +24,7 @@ import {
   Highlighter, Undo, Redo, Save,
   ChevronDown, Globe, Lock, Type, Palette, Upload, X, Video,
   Sparkles, Eye, Calendar, Search, Star, Share2, CheckCircle2,
-  ImagePlus, Wand2, LayoutGrid, BarChart2, Clock, Hash, PenLine,
+  ImagePlus, Wand2, LayoutGrid, BarChart2, Clock, Hash, PenLine, CornerUpLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import styles from "./EditorPage.module.css";
@@ -61,8 +61,10 @@ const PLACEHOLDER_IDS = new Set(["__new__", "new", "new-draft", ""]);
 export default function EditorPage() {
   const params    = useParams();
   const router    = useRouter();
+  const search    = useSearchParams();
   const articleId  = (params?.id as string) ?? "";
   const isNewArticle = PLACEHOLDER_IDS.has(articleId);
+  const replyToId  = search?.get("replyTo") ?? null;
 
   const [title, setTitle]           = useState("");
   const [subtitle, setSubtitle]     = useState("");
@@ -85,6 +87,7 @@ export default function EditorPage() {
   const [isFeatured, setIsFeatured] = useState(false);
   const [visibility, setVisibility] = useState<"public" | "private">("public");
   const [scheduleDate, setScheduleDate] = useState("");
+  const [parentArticle, setParentArticle] = useState<{ id: string; slug: string; title: string; author: { name: string | null; handle: string } } | null>(null);
 
   const fontMenuRef   = useRef<HTMLDivElement>(null);
   const sizeMenuRef   = useRef<HTMLDivElement>(null);
@@ -152,6 +155,13 @@ export default function EditorPage() {
         setTags(data.tags         ?? []);
         setCoverImage(data.coverImage ?? null);
         setStatus(data.published ? "published" : "draft");
+        if (data.scheduledFor) {
+          // Convert UTC ISO to local datetime-local input value
+          const d = new Date(data.scheduledFor);
+          const pad = (n: number) => String(n).padStart(2, "0");
+          setScheduleDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+        }
+        if (data.parentArticle) setParentArticle(data.parentArticle);
         if (data.content) setPendingContent(data.content);
       } catch (err) {
         console.error("Error loading article:", err);
@@ -162,6 +172,25 @@ export default function EditorPage() {
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [articleId]);
+
+  // ── Load parent article for new reply posts ─────────────────
+  useEffect(() => {
+    if (!isNewArticle || !replyToId) return;
+    fetch(`/api/articles/${replyToId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        setParentArticle({
+          id: data.id,
+          slug: data.slug,
+          title: data.title,
+          author: { name: data.author?.name ?? null, handle: data.author?.handle ?? "" },
+        });
+        if (!title) setTitle(`Re: ${data.title}`);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replyToId, isNewArticle]);
 
   useEffect(() => {
     if (!editor || !pendingContent) return;
@@ -188,7 +217,7 @@ export default function EditorPage() {
 
   const serverSave = useCallback(async (snap: DraftSnapshot): Promise<string | null> => {
     const safeTitle = snap.title.trim() || "Untitled";
-    const payload = {
+    const payload: Record<string, unknown> = {
       title: safeTitle,
       subtitle: snap.subtitle,
       content: snap.content,
@@ -196,6 +225,7 @@ export default function EditorPage() {
       coverImage: snap.coverImage,
       published: status === "published",
     };
+    if (isNewArticle && parentArticle?.id) payload.parentArticleId = parentArticle.id;
     if (isNewArticle) {
       const res = await fetch("/api/articles", {
         method: "POST",
@@ -215,7 +245,7 @@ export default function EditorPage() {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return articleId;
-  }, [articleId, isNewArticle, status]);
+  }, [articleId, isNewArticle, status, parentArticle]);
 
   const autoSave = useAutoSave({
     storageKey,
@@ -299,7 +329,16 @@ export default function EditorPage() {
     setSaving(true);
     try {
       const safeTitle = title.trim() || "Untitled";
-      const payload = { title: safeTitle, subtitle, content: editor?.getHTML() ?? "", tags, coverImage, published: publish };
+      // If a future schedule date is set during publish, treat it as scheduled (not immediate)
+      const scheduledIso = scheduleDate ? new Date(scheduleDate).toISOString() : null;
+      const isFutureSchedule = !!scheduledIso && new Date(scheduleDate).getTime() > Date.now();
+      const payload: Record<string, unknown> = {
+        title: safeTitle, subtitle, content: editor?.getHTML() ?? "",
+        tags, coverImage, published: publish,
+      };
+      if (isFutureSchedule) payload.scheduledFor = scheduledIso;
+      else if (scheduleDate === "") payload.clearSchedule = true;
+      if (isNewArticle && parentArticle?.id) payload.parentArticleId = parentArticle.id;
       if (isNewArticle) {
         const res = await fetch("/api/articles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error ?? `HTTP ${res.status}`); }
@@ -312,12 +351,18 @@ export default function EditorPage() {
       }
       autoSave.markSaved();
       if (publish) {
-        setStatus("published");
+        const futureSchedule = !!scheduleDate && new Date(scheduleDate).getTime() > Date.now();
+        if (futureSchedule) {
+          setStatus("draft");
+          toast.success(`Scheduled for ${new Date(scheduleDate).toLocaleString()}`);
+        } else {
+          setStatus("published");
+          toast.success("Article published!");
+        }
         clearDraftFromStorage(storageKey);
-        toast.success("Article published! 🎉");
         setShowPublishModal(false);
       } else {
-        toast.success("Draft saved ✓");
+        toast.success("Draft saved");
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -325,7 +370,7 @@ export default function EditorPage() {
     } finally {
       setSaving(false);
     }
-  }, [title, subtitle, editor, tags, coverImage, articleId, isNewArticle, router, autoSave, storageKey]);
+  }, [title, subtitle, editor, tags, coverImage, articleId, isNewArticle, router, autoSave, storageKey, scheduleDate, parentArticle]);
 
   const addTag = (t?: string) => {
     const raw = (t ?? tagInput).trim().toLowerCase().replace(/\s+/g, "-");
@@ -471,8 +516,13 @@ export default function EditorPage() {
       <header className={styles.topBar}>
         <div className={styles.topLeft}>
           <div className={styles.statusBadge} data-status={status}>
-            {status === "draft" ? <Lock size={12} /> : <Globe size={12} />}
-            {status === "draft" ? "Draft" : "Published"}
+            {scheduleDate && new Date(scheduleDate).getTime() > Date.now() && status === "draft" ? (
+              <><Calendar size={12} />Scheduled</>
+            ) : status === "draft" ? (
+              <><Lock size={12} />Draft</>
+            ) : (
+              <><Globe size={12} />Published</>
+            )}
           </div>
           <SaveStatusIndicator status={autoSave.status} savedAt={autoSave.savedAt} />
         </div>
@@ -546,6 +596,65 @@ export default function EditorPage() {
             }}
           >
             Continue writing
+          </button>
+        </div>
+      )}
+
+      {/* ── Reply-to-post context banner ────────────────────── */}
+      {parentArticle && (
+        <div
+          role="note"
+          aria-label="Replying to"
+          style={{
+            margin: "0.75rem 1.5rem 0",
+            padding: "0.7rem 1rem",
+            background: "rgba(52,143,255,0.08)",
+            border: "1px solid rgba(52,143,255,0.3)",
+            borderRadius: "12px",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.6rem",
+            fontSize: "0.85rem",
+          }}
+        >
+          <CornerUpLeft size={15} style={{ color: "var(--brand-400)", flexShrink: 0 }} />
+          <span style={{ color: "var(--text-muted)", flexShrink: 0 }}>Replying to</span>
+          <a
+            href={`/article/${parentArticle.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontWeight: 600,
+              color: "var(--text-primary)",
+              textDecoration: "none",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            {parentArticle.title}
+          </a>
+          <span style={{ color: "var(--text-muted)", fontSize: "0.78rem", flexShrink: 0 }}>
+            by {parentArticle.author.name ?? parentArticle.author.handle}
+          </span>
+          <button
+            type="button"
+            onClick={() => setParentArticle(null)}
+            aria-label="Remove reply context"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              padding: "0.15rem",
+              display: "flex",
+              borderRadius: 4,
+            }}
+            title="Remove reply context"
+          >
+            <X size={14} />
           </button>
         </div>
       )}
@@ -825,8 +934,39 @@ export default function EditorPage() {
                 <div className={styles.modalField} style={{ gridColumn: "1/-1" }}>
                   <label className={styles.modalLabel}>
                     <Calendar size={13} /> Schedule Publish
+                    <span style={{ marginLeft: "auto", fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 400 }}>
+                      Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}
+                    </span>
                   </label>
-                  <input type="datetime-local" className={styles.modalInput} value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} />
+                  <input
+                    type="datetime-local"
+                    className={styles.modalInput}
+                    value={scheduleDate}
+                    min={new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16)}
+                    onChange={e => setScheduleDate(e.target.value)}
+                  />
+                  {scheduleDate && new Date(scheduleDate).getTime() > Date.now() && (
+                    <p style={{ fontSize: "0.74rem", color: "var(--text-muted)", margin: "0.4rem 0 0" }}>
+                      Will publish on {new Date(scheduleDate).toLocaleString()}
+                    </p>
+                  )}
+                  {scheduleDate && (
+                    <button
+                      type="button"
+                      onClick={() => setScheduleDate("")}
+                      style={{
+                        marginTop: "0.4rem",
+                        fontSize: "0.74rem",
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--brand-400)",
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      Clear schedule
+                    </button>
+                  )}
                 </div>
 
                 {/* SEO Meta */}
@@ -851,8 +991,11 @@ export default function EditorPage() {
             <div className={styles.modalFooter}>
               <button className={styles.modalSecondaryBtn} onClick={() => setShowPublishModal(false)}>Cancel</button>
               <button className={styles.modalPublishBtn} onClick={() => handleSave(true)} disabled={saving}>
-                <Globe size={14} />
-                {saving ? "Publishing…" : "Publish Now"}
+                {scheduleDate && new Date(scheduleDate).getTime() > Date.now() ? (
+                  <><Calendar size={14} />{saving ? "Scheduling…" : "Schedule Publish"}</>
+                ) : (
+                  <><Globe size={14} />{saving ? "Publishing…" : "Publish Now"}</>
+                )}
               </button>
             </div>
           </div>
