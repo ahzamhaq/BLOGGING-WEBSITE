@@ -228,7 +228,7 @@ export function Comments({ articleId }: Props) {
   }
 
   return (
-    <section className={styles.section} aria-labelledby="comments-heading">
+    <section id="comments" className={styles.section} aria-labelledby="comments-heading">
       <h2 id="comments-heading" className={styles.heading}>
         <MessageCircle size={20} />
         {comments.length} {comments.length === 1 ? "Comment" : "Comments"}

@@ -24,13 +24,20 @@ import {
   Highlighter, Undo, Redo, Save,
   ChevronDown, Globe, Lock, Type, Palette, Upload, X, Video,
   Sparkles, Eye, Calendar, Search, Star, Share2, CheckCircle2,
-  ImagePlus, Wand2, LayoutGrid, BarChart2, Clock, Hash,
+  ImagePlus, Wand2, LayoutGrid, BarChart2, Clock, Hash, PenLine,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import styles from "./EditorPage.module.css";
 import { AiAssistant } from "@/components/editor/AiAssistant";
 import { InlineAiToolbar } from "@/components/editor/InlineAiToolbar";
 import { VoiceButton } from "@/components/editor/VoiceButton";
+import {
+  useAutoSave,
+  readDraftFromStorage,
+  clearDraftFromStorage,
+  type DraftSnapshot,
+} from "@/components/editor/useAutoSave";
+import { SaveStatusIndicator } from "@/components/editor/SaveStatus";
 
 type PublishStatus = "draft" | "published";
 
@@ -63,7 +70,6 @@ export default function EditorPage() {
   const [tagInput, setTagInput]     = useState("");
   const [status, setStatus]         = useState<PublishStatus>("draft");
   const [saving, setSaving]         = useState(false);
-  const [autoSaved, setAutoSaved]   = useState(false);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [wordCountLimit]            = useState(50000);
   const [showFontMenu, setShowFontMenu] = useState(false);
@@ -172,47 +178,154 @@ export default function EditorPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // ── Auto-save ────────────────────────────────────────────────
+  // ── Continue-writing prompt for unsaved drafts ──────────────
+  const [showContinuePrompt, setShowContinuePrompt] = useState(false);
+  const [continueDraft, setContinueDraft] = useState<DraftSnapshot | null>(null);
+
+  // ── Auto-save (debounced server + immediate localStorage) ───
+  const storageKey = isNewArticle ? "new" : articleId;
+  const editorReady = !loading && !!editor && !pendingContent;
+
+  const serverSave = useCallback(async (snap: DraftSnapshot): Promise<string | null> => {
+    const safeTitle = snap.title.trim() || "Untitled";
+    const payload = {
+      title: safeTitle,
+      subtitle: snap.subtitle,
+      content: snap.content,
+      tags: snap.tags,
+      coverImage: snap.coverImage,
+      published: status === "published",
+    };
+    if (isNewArticle) {
+      const res = await fetch("/api/articles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      // Move to the persisted URL without remounting the editor
+      window.history.replaceState(null, "", `/editor/${data.id}`);
+      return data.id as string;
+    }
+    const res = await fetch(`/api/articles/${articleId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return articleId;
+  }, [articleId, isNewArticle, status]);
+
+  const autoSave = useAutoSave({
+    storageKey,
+    serverSave,
+    debounceMs: 1500,
+    ready: editorReady,
+  });
+
+  // Trigger autosave on every relevant change
   useEffect(() => {
-    const interval = setInterval(async () => {
-      if (!title.trim() && !editor?.getText().trim()) return;
-      if (isNewArticle) return;
-      try {
-        const res = await fetch(`/api/articles/${articleId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, subtitle, content: editor?.getHTML() ?? "", tags, coverImage, published: status === "published" }),
-        });
-        if (res.ok) { setAutoSaved(true); setTimeout(() => setAutoSaved(false), 2000); }
-      } catch (err) { console.error("Auto-save failed:", err); }
-    }, 30_000);
-    return () => clearInterval(interval);
-  }, [title, subtitle, editor, tags, coverImage, status, articleId, isNewArticle]);
+    if (!editorReady) return;
+    const html = editor?.getHTML() ?? "";
+    autoSave.trigger({
+      title,
+      subtitle,
+      content: html,
+      tags,
+      coverImage,
+      updatedAt: Date.now(),
+    });
+    // We intentionally listen to editor updates separately below
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, subtitle, tags, coverImage, editorReady]);
+
+  // Hook into the editor's update event so typing also fires autosave
+  useEffect(() => {
+    if (!editor || !editorReady) return;
+    const onUpdate = () => {
+      autoSave.trigger({
+        title,
+        subtitle,
+        content: editor.getHTML(),
+        tags,
+        coverImage,
+        updatedAt: Date.now(),
+      });
+    };
+    editor.on("update", onUpdate);
+    return () => { editor.off("update", onUpdate); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, editorReady, title, subtitle, tags, coverImage]);
+
+  // Show continue-writing prompt for new editor if unsaved local draft exists
+  useEffect(() => {
+    if (!isNewArticle) return;
+    const existing = readDraftFromStorage("new");
+    if (existing) {
+      const hasContent =
+        existing.title.trim() ||
+        existing.subtitle.trim() ||
+        existing.tags.length > 0 ||
+        existing.coverImage ||
+        existing.content.replace(/<[^>]*>/g, "").trim();
+      if (hasContent) {
+        setContinueDraft(existing);
+        setShowContinuePrompt(true);
+      }
+    }
+  }, [isNewArticle]);
+
+  const restoreDraft = useCallback(() => {
+    if (!continueDraft || !editor) return;
+    setTitle(continueDraft.title);
+    setSubtitle(continueDraft.subtitle);
+    setTags(continueDraft.tags);
+    setCoverImage(continueDraft.coverImage);
+    editor.commands.setContent(continueDraft.content || "");
+    setShowContinuePrompt(false);
+    toast.success("Draft restored");
+  }, [continueDraft, editor]);
+
+  const discardDraft = useCallback(() => {
+    clearDraftFromStorage("new");
+    setShowContinuePrompt(false);
+    setContinueDraft(null);
+  }, []);
 
   // ── Save / Publish ───────────────────────────────────────────
   const handleSave = useCallback(async (publish = false) => {
-    if (!title.trim()) { toast.error("Please add a title."); return; }
+    if (publish && !title.trim()) { toast.error("Please add a title before publishing."); return; }
     setSaving(true);
     try {
-      const payload = { title, subtitle, content: editor?.getHTML() ?? "", tags, coverImage, published: publish };
+      const safeTitle = title.trim() || "Untitled";
+      const payload = { title: safeTitle, subtitle, content: editor?.getHTML() ?? "", tags, coverImage, published: publish };
       if (isNewArticle) {
         const res = await fetch("/api/articles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error ?? `HTTP ${res.status}`); }
         const data = await res.json();
+        clearDraftFromStorage("new");
         router.replace(`/editor/${data.id}`);
       } else {
         const res = await fetch(`/api/articles/${articleId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error ?? `HTTP ${res.status}`); }
       }
-      if (publish) { setStatus("published"); toast.success("Article published! 🎉"); setShowPublishModal(false); }
-      else         { toast.success("Draft saved ✓"); }
+      autoSave.markSaved();
+      if (publish) {
+        setStatus("published");
+        clearDraftFromStorage(storageKey);
+        toast.success("Article published! 🎉");
+        setShowPublishModal(false);
+      } else {
+        toast.success("Draft saved ✓");
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`Save failed: ${msg}`);
     } finally {
       setSaving(false);
     }
-  }, [title, subtitle, editor, tags, coverImage, articleId, isNewArticle, router]);
+  }, [title, subtitle, editor, tags, coverImage, articleId, isNewArticle, router, autoSave, storageKey]);
 
   const addTag = (t?: string) => {
     const raw = (t ?? tagInput).trim().toLowerCase().replace(/\s+/g, "-");
@@ -361,7 +474,7 @@ export default function EditorPage() {
             {status === "draft" ? <Lock size={12} /> : <Globe size={12} />}
             {status === "draft" ? "Draft" : "Published"}
           </div>
-          {autoSaved && <span className={styles.autoSaved}>Saved ✓</span>}
+          <SaveStatusIndicator status={autoSave.status} savedAt={autoSave.savedAt} />
         </div>
         <div className={styles.topRight}>
           <button className={styles.topBtn} onClick={() => handleSave(false)} disabled={saving}>
@@ -374,6 +487,68 @@ export default function EditorPage() {
           </button>
         </div>
       </header>
+
+      {/* ── Continue writing prompt ─────────────────────────── */}
+      {showContinuePrompt && continueDraft && (
+        <div
+          role="dialog"
+          aria-label="Unfinished draft"
+          style={{
+            margin: "0.75rem 1.5rem 0",
+            padding: "0.85rem 1rem",
+            background: "var(--bg-surface)",
+            border: "1px solid rgba(52,143,255,0.35)",
+            borderRadius: "12px",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.18)",
+          }}
+        >
+          <PenLine size={16} style={{ color: "var(--brand-400)", flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+              You have an unfinished draft. Continue writing?
+            </p>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", margin: "0.15rem 0 0" }}>
+              Last edit: {new Date(continueDraft.updatedAt).toLocaleString()} ·{" "}
+              {continueDraft.title.trim() || "Untitled"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={discardDraft}
+            style={{
+              fontSize: "0.78rem",
+              fontWeight: 500,
+              padding: "0.4rem 0.8rem",
+              borderRadius: "8px",
+              border: "1px solid var(--border-default)",
+              background: "transparent",
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+            }}
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            onClick={restoreDraft}
+            style={{
+              fontSize: "0.78rem",
+              fontWeight: 600,
+              padding: "0.4rem 0.9rem",
+              borderRadius: "8px",
+              border: "1px solid var(--brand-400)",
+              background: "var(--brand-400)",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Continue writing
+          </button>
+        </div>
+      )}
 
       <div className={styles.body}>
 

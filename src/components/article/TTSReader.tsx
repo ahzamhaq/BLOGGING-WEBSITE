@@ -22,8 +22,8 @@ function fmtTime(s: number) {
 
 export function TTSReader({ html }: Props) {
   const [supported, setSupported] = useState(true);
-  const [playing, setPlaying] = useState(false);
-  const [paused, setPaused] = useState(false);
+  // "idle" | "playing" | "paused"
+  const [playState, setPlayState] = useState<"idle" | "playing" | "paused">("idle");
   const [rate, setRate] = useState(1);
   const [activeIdx, setActiveIdx] = useState(-1);
   const [bodyText, setBodyText] = useState("");
@@ -31,26 +31,32 @@ export function TTSReader({ html }: Props) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [followOn, setFollowOn] = useState(true);
   const [showFloating, setShowFloating] = useState(false);
-  const [followPaused, setFollowPaused] = useState(false);
+  // true when user is manually scrolling (suppresses auto-follow temporarily)
+  const [userScrolling, setUserScrolling] = useState(false);
 
   const bodyRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const utterRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // charOffsetRef = start char of the CURRENTLY HIGHLIGHTED word (updated by onboundary)
   const charOffsetRef = useRef(0);
+  // pauseOffsetRef = char offset saved at pause time (what Resume should restart from)
+  const pauseOffsetRef = useRef(0);
+
   const rateRef = useRef(rate);
   const stoppingRef = useRef(false);
   const programmaticScrollRef = useRef(false);
   const userScrollTimerRef = useRef<number | null>(null);
   const userScrollingRef = useRef(false);
   const prevActiveSpanRef = useRef<HTMLElement | null>(null);
+
+  // Ref mirrors of state for use inside event handlers / intervals
   const followOnRef = useRef(followOn);
-  const playingRef = useRef(false);
-  const pausedRef = useRef(false);
+  const playStateRef = useRef<"idle" | "playing" | "paused">("idle");
 
   rateRef.current = rate;
   followOnRef.current = followOn;
-  playingRef.current = playing;
-  pausedRef.current = paused;
+  playStateRef.current = playState;
 
   // ── Persist follow preference ────────────────────────────────
   useEffect(() => {
@@ -118,22 +124,22 @@ export function TTSReader({ html }: Props) {
     setBodyText(fullParts.join(""));
   }, [html]);
 
-  // ── Detect manual scroll via ref (no rerenders) ──────────────
+  // ── Detect manual scroll (ref-only, no rerenders) ────────────
   useEffect(() => {
     const markUserScroll = () => {
       if (programmaticScrollRef.current) return;
       userScrollingRef.current = true;
-      setFollowPaused(true);
+      setUserScrolling(true);
       if (userScrollTimerRef.current) window.clearTimeout(userScrollTimerRef.current);
       userScrollTimerRef.current = window.setTimeout(() => {
         userScrollingRef.current = false;
-        setFollowPaused(false);
+        setUserScrolling(false);
       }, FOLLOW_RESUME_DELAY_MS);
     };
     const onWheel = () => markUserScroll();
     const onTouch = () => markUserScroll();
     const onKey = (e: KeyboardEvent) => {
-      if (["ArrowUp","ArrowDown","PageUp","PageDown","Home","End"," "].includes(e.key)) {
+      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(e.key)) {
         const t = e.target as HTMLElement | null;
         if (t && t.getAttribute("role") === "slider") return;
         markUserScroll();
@@ -150,7 +156,7 @@ export function TTSReader({ html }: Props) {
     };
   }, []);
 
-  // ── Highlight only PREV and NEW active span (O(1) instead of O(n)) ──
+  // ── Highlight active word + auto-scroll ──────────────────────
   useEffect(() => {
     const root = bodyRef.current;
     if (!root) return;
@@ -161,9 +167,8 @@ export function TTSReader({ html }: Props) {
       prev.classList.add(styles.wordSpoken);
     }
     if (activeIdx < 0) {
-      // Reset all spoken classes when stopping
-      const spoken = root.querySelectorAll<HTMLElement>("." + styles.wordSpoken);
-      spoken.forEach((s) => s.classList.remove(styles.wordSpoken));
+      root.querySelectorAll<HTMLElement>("." + styles.wordSpoken)
+        .forEach((s) => s.classList.remove(styles.wordSpoken));
       prevActiveSpanRef.current = null;
       return;
     }
@@ -173,7 +178,6 @@ export function TTSReader({ html }: Props) {
       next.classList.add(styles.wordActive);
       prevActiveSpanRef.current = next;
 
-      // Smart auto-scroll — only if follow is on AND user isn't actively scrolling
       if (followOnRef.current && !userScrollingRef.current) {
         const rect = next.getBoundingClientRect();
         const vh = window.innerHeight;
@@ -187,24 +191,22 @@ export function TTSReader({ html }: Props) {
     }
   }, [activeIdx]);
 
-  // ── Floating bar visibility — simple scroll-position check ───
+  // ── Floating bar visibility ───────────────────────────────────
   useEffect(() => {
     const onScroll = () => {
       const tb = toolbarRef.current;
-      if (!tb || !(playingRef.current || pausedRef.current)) {
+      if (!tb || playStateRef.current === "idle") {
         setShowFloating(false);
         return;
       }
-      const rect = tb.getBoundingClientRect();
-      // Show floating once toolbar's bottom passes above the viewport
-      setShowFloating(rect.bottom < 0);
+      setShowFloating(tb.getBoundingClientRect().bottom < 0);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [playing, paused]);
+  }, [playState]);
 
-  // ── Speech synthesis ─────────────────────────────────────────
+  // ── Core: start speaking from a char offset ───────────────────
   const speakFromCharOffset = useCallback((charOffset: number) => {
     if (typeof window === "undefined") return;
     if (!bodyText.trim()) return;
@@ -216,7 +218,10 @@ export function TTSReader({ html }: Props) {
 
     const slice = bodyText.slice(charOffset);
     if (!slice.trim()) {
-      setPlaying(false); setPaused(false); setActiveIdx(-1); charOffsetRef.current = 0;
+      charOffsetRef.current = 0;
+      pauseOffsetRef.current = 0;
+      setPlayState("idle");
+      setActiveIdx(-1);
       return;
     }
 
@@ -242,57 +247,86 @@ export function TTSReader({ html }: Props) {
     };
     u.onend = () => {
       if (stoppingRef.current) return;
-      setPlaying(false); setPaused(false); setActiveIdx(-1); charOffsetRef.current = 0;
+      charOffsetRef.current = 0;
+      pauseOffsetRef.current = 0;
+      setPlayState("idle");
+      setActiveIdx(-1);
     };
-    u.onerror = () => {
+    u.onerror = (e) => {
       if (stoppingRef.current) return;
-      setPlaying(false); setPaused(false);
+      if ((e as SpeechSynthesisErrorEvent).error === "interrupted") return;
+      setPlayState("idle");
     };
 
     utterRef.current = u;
     setTimeout(() => { try { synth.speak(u); } catch {} }, 30);
-    setPlaying(true); setPaused(false);
+    setPlayState("playing");
   }, [bodyText, tokens]);
 
+  // ── Play ─────────────────────────────────────────────────────
   const play = useCallback(() => {
-    const synth = window.speechSynthesis;
-    if (pausedRef.current && synth.paused) {
-      synth.resume();
-      setPlaying(true); setPaused(false);
-      return;
+    if (playStateRef.current === "paused") {
+      speakFromCharOffset(pauseOffsetRef.current);
+    } else {
+      speakFromCharOffset(charOffsetRef.current || 0);
     }
-    speakFromCharOffset(charOffsetRef.current || 0);
   }, [speakFromCharOffset]);
 
+  // ── Pause — cancel and save exact position ───────────────────
   const pauseSpeech = useCallback(() => {
-    const synth = window.speechSynthesis;
-    if (!synth.speaking) return;
-    synth.pause();
-    setPlaying(false); setPaused(true);
+    if (playStateRef.current !== "playing") return;
+    // Snapshot current word position before cancelling
+    pauseOffsetRef.current = charOffsetRef.current;
+    stoppingRef.current = true;
+    window.speechSynthesis.cancel();
+    stoppingRef.current = false;
+    setPlayState("paused");
+    // activeIdx stays — highlight remains visible while paused
   }, []);
 
+  // ── Stop ─────────────────────────────────────────────────────
   const stop = useCallback(() => {
     stoppingRef.current = true;
     window.speechSynthesis.cancel();
     stoppingRef.current = false;
-    setPlaying(false); setPaused(false); setActiveIdx(-1); charOffsetRef.current = 0;
+    charOffsetRef.current = 0;
+    pauseOffsetRef.current = 0;
+    setPlayState("idle");
+    setActiveIdx(-1);
   }, []);
 
+  // ── Change rate mid-playback ──────────────────────────────────
   const changeRate = useCallback((r: number) => {
     setRate(r);
     rateRef.current = r;
-    if (playingRef.current || pausedRef.current) {
+    const ps = playStateRef.current;
+    if (ps === "playing") {
       speakFromCharOffset(charOffsetRef.current);
+    } else if (ps === "paused") {
+      // Stay paused at same offset, just update rate for next play
     }
   }, [speakFromCharOffset]);
 
-  const seekToWord = useCallback((idx: number) => {
-    if (idx < 0 || idx >= tokens.length) return;
-    charOffsetRef.current = tokens[idx].start;
+  // ── Seek to a specific word index ────────────────────────────
+  const seekToWord = useCallback((idx: number, localTokens?: Token[]) => {
+    const toks = localTokens ?? tokens;
+    if (idx < 0 || idx >= toks.length) return;
+    const offset = toks[idx].start;
+    charOffsetRef.current = offset;
     setActiveIdx(idx);
-    if (playingRef.current || pausedRef.current) speakFromCharOffset(tokens[idx].start);
+
+    const ps = playStateRef.current;
+    if (ps === "playing") {
+      speakFromCharOffset(offset);
+    } else if (ps === "paused") {
+      // Update pauseOffset so Resume continues from the new position
+      pauseOffsetRef.current = offset;
+      // Don't restart speech — stay paused, just move the highlight
+    }
+    // idle: just move the highlight so user can see where they'll start from
   }, [tokens, speakFromCharOffset]);
 
+  // ── Skip sentences forward / backward ────────────────────────
   const skipSentences = useCallback((dir: 1 | -1) => {
     if (tokens.length === 0) return;
     const cur = activeIdx >= 0 ? activeIdx : 0;
@@ -316,43 +350,39 @@ export function TTSReader({ html }: Props) {
     seekToWord(found);
   }, [activeIdx, tokens, seekToWord]);
 
-  // Alt+click word
+  // ── Alt/Shift+click word to seek ─────────────────────────────
   useEffect(() => {
     const root = bodyRef.current;
     if (!root) return;
     const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const span = target.closest<HTMLElement>("[data-tts-idx]");
-      if (!span) return;
-      if (!(e.altKey || e.shiftKey)) return;
+      const span = (e.target as HTMLElement).closest<HTMLElement>("[data-tts-idx]");
+      if (!span || !(e.altKey || e.shiftKey)) return;
       e.preventDefault();
       const idx = Number(span.dataset.ttsIdx);
       seekToWord(idx);
-      if (!playingRef.current) speakFromCharOffset(tokens[idx]?.start ?? 0);
+      if (playStateRef.current === "idle") speakFromCharOffset(tokens[idx]?.start ?? 0);
     };
     root.addEventListener("click", handler);
     return () => root.removeEventListener("click", handler);
   }, [seekToWord, speakFromCharOffset, tokens]);
 
-  // Cleanup on unmount
+  // ── Chrome long-text keep-alive ───────────────────────────────
+  useEffect(() => {
+    if (playState !== "playing") return;
+    const id = window.setInterval(() => {
+      if (playStateRef.current === "playing") {
+        speakFromCharOffset(charOffsetRef.current);
+      }
+    }, 12000);
+    return () => window.clearInterval(id);
+  }, [playState, speakFromCharOffset]);
+
+  // ── Cleanup on unmount ────────────────────────────────────────
   useEffect(() => () => {
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
   }, []);
 
-  // Chrome long-text keep-alive — only when actively playing AND not paused
-  useEffect(() => {
-    if (!playing) return;
-    const id = window.setInterval(() => {
-      const synth = window.speechSynthesis;
-      // Skip if user paused — don't clobber pause state
-      if (synth.speaking && !synth.paused && !pausedRef.current) {
-        synth.pause();
-        synth.resume();
-      }
-    }, 12000);
-    return () => window.clearInterval(id);
-  }, [playing]);
-
+  // ── Jump to currently highlighted word ────────────────────────
   const jumpToActive = useCallback(() => {
     const root = bodyRef.current;
     if (!root || activeIdx < 0) return;
@@ -364,10 +394,25 @@ export function TTSReader({ html }: Props) {
     window.scrollTo({ top: targetY, behavior: "smooth" });
     if (userScrollTimerRef.current) window.clearTimeout(userScrollTimerRef.current);
     userScrollingRef.current = false;
-    setFollowPaused(false);
+    setUserScrolling(false);
     window.setTimeout(() => { programmaticScrollRef.current = false; }, 800);
   }, [activeIdx]);
 
+  // ── Follow toggle — clear manual-scroll state when turning Follow back on ──
+  const toggleFollow = useCallback(() => {
+    setFollowOn((v) => {
+      const next = !v;
+      if (next) {
+        // Switching to Follow: clear any lingering manual-scroll suppression
+        if (userScrollTimerRef.current) window.clearTimeout(userScrollTimerRef.current);
+        userScrollingRef.current = false;
+        setUserScrolling(false);
+      }
+      return next;
+    });
+  }, []);
+
+  // ── Derived display values ────────────────────────────────────
   const totalWords = tokens.length;
   const progressPct = totalWords > 0 && activeIdx >= 0 ? ((activeIdx + 1) / totalWords) * 100 : 0;
   const wordsPerSec = (160 / 60) * rate;
@@ -378,20 +423,20 @@ export function TTSReader({ html }: Props) {
     if (totalWords === 0) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
-    const idx = Math.min(totalWords - 1, Math.max(0, Math.floor(pct * totalWords)));
-    seekToWord(idx);
+    seekToWord(Math.min(totalWords - 1, Math.max(0, Math.floor(pct * totalWords))));
   };
   const onSeekHover = (e: React.MouseEvent<HTMLDivElement>) => {
     if (totalWords === 0) return setHoverIdx(null);
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
-    const idx = Math.min(totalWords - 1, Math.max(0, Math.floor(pct * totalWords)));
-    setHoverIdx(idx);
+    setHoverIdx(Math.min(totalWords - 1, Math.max(0, Math.floor(pct * totalWords))));
   };
 
   if (!supported) return <div className="prose" dangerouslySetInnerHTML={{ __html: html }} />;
 
-  const isActive = playing || paused;
+  const isPlaying = playState === "playing";
+  const isPaused = playState === "paused";
+  const isActive = isPlaying || isPaused;
 
   return (
     <>
@@ -400,39 +445,76 @@ export function TTSReader({ html }: Props) {
           <Volume2 size={14} className={styles.icon} />
           <span className={styles.label}>Listen</span>
 
-          <button className={styles.iconBtn} onClick={() => skipSentences(-1)} title="Previous sentence" aria-label="Previous sentence" disabled={!isActive && activeIdx < 0}>
+          <button
+            className={styles.iconBtn}
+            onClick={() => skipSentences(-1)}
+            title="Previous sentence"
+            aria-label="Previous sentence"
+            disabled={!isActive}
+          >
             <SkipBack size={14} />
           </button>
 
-          {!playing ? (
-            <button className={`${styles.iconBtn} ${styles.iconBtnPrimary}`} onClick={play} title={paused ? "Resume" : "Play"} aria-label={paused ? "Resume" : "Play"}>
+          {!isPlaying ? (
+            <button
+              className={`${styles.iconBtn} ${styles.iconBtnPrimary}`}
+              onClick={play}
+              title={isPaused ? "Resume" : "Play"}
+              aria-label={isPaused ? "Resume" : "Play"}
+            >
               <Play size={15} />
             </button>
           ) : (
-            <button className={`${styles.iconBtn} ${styles.iconBtnPrimary}`} onClick={pauseSpeech} title="Pause" aria-label="Pause">
+            <button
+              className={`${styles.iconBtn} ${styles.iconBtnPrimary}`}
+              onClick={pauseSpeech}
+              title="Pause"
+              aria-label="Pause"
+            >
               <Pause size={15} />
             </button>
           )}
 
-          <button className={styles.iconBtn} onClick={() => skipSentences(1)} title="Next sentence" aria-label="Next sentence" disabled={!isActive && activeIdx < 0}>
+          <button
+            className={styles.iconBtn}
+            onClick={() => skipSentences(1)}
+            title="Next sentence"
+            aria-label="Next sentence"
+            disabled={!isActive}
+          >
             <SkipForward size={14} />
           </button>
 
           {isActive && (
-            <button className={`${styles.iconBtn} ${styles.iconBtnStop}`} onClick={stop} title="Stop" aria-label="Stop">
+            <button
+              className={`${styles.iconBtn} ${styles.iconBtnStop}`}
+              onClick={stop}
+              title="Stop"
+              aria-label="Stop"
+            >
               <Square size={13} />
             </button>
           )}
 
           <div className={styles.rateGroup} role="group" aria-label="Playback speed">
             {RATES.map((r) => (
-              <button key={r} className={`${styles.rateBtn} ${rate === r ? styles.rateBtnActive : ""}`} onClick={() => changeRate(r)} title={`${r}× speed`}>
+              <button
+                key={r}
+                className={`${styles.rateBtn} ${rate === r ? styles.rateBtnActive : ""}`}
+                onClick={() => changeRate(r)}
+                title={`${r}× speed`}
+              >
                 {r}×
               </button>
             ))}
           </div>
 
-          <button className={`${styles.followBtn} ${followOn ? styles.followBtnOn : ""}`} onClick={() => setFollowOn((v) => !v)} title={followOn ? "Auto-scroll on" : "Auto-scroll off"} aria-pressed={followOn}>
+          <button
+            className={`${styles.followBtn} ${followOn ? styles.followBtnOn : ""}`}
+            onClick={toggleFollow}
+            title={followOn ? "Auto-scroll: ON — click to switch to Manual" : "Manual mode — click to turn Auto-scroll ON"}
+            aria-pressed={followOn}
+          >
             {followOn ? <Target size={13} /> : <MousePointer2 size={13} />}
             <span>{followOn ? "Follow" : "Manual"}</span>
           </button>
@@ -440,12 +522,21 @@ export function TTSReader({ html }: Props) {
 
         <div className={styles.seekRow}>
           <span className={styles.time}>{fmtTime(elapsedSec)}</span>
-          <div className={styles.seekTrack} role="slider" aria-valuemin={0} aria-valuemax={totalWords} aria-valuenow={Math.max(0, activeIdx)} tabIndex={0}
-            onClick={onSeekClick} onMouseMove={onSeekHover} onMouseLeave={() => setHoverIdx(null)}
+          <div
+            className={styles.seekTrack}
+            role="slider"
+            aria-valuemin={0}
+            aria-valuemax={totalWords}
+            aria-valuenow={Math.max(0, activeIdx)}
+            tabIndex={0}
+            onClick={onSeekClick}
+            onMouseMove={onSeekHover}
+            onMouseLeave={() => setHoverIdx(null)}
             onKeyDown={(e) => {
               if (e.key === "ArrowRight") seekToWord(Math.min(totalWords - 1, (activeIdx < 0 ? 0 : activeIdx) + 1));
               else if (e.key === "ArrowLeft") seekToWord(Math.max(0, (activeIdx < 0 ? 0 : activeIdx) - 1));
-            }}>
+            }}
+          >
             <div className={styles.seekFill} style={{ width: `${progressPct}%` }} />
             <div className={styles.seekThumb} style={{ left: `${progressPct}%` }} />
             {hoverIdx !== null && (
@@ -459,7 +550,7 @@ export function TTSReader({ html }: Props) {
 
         <div className={styles.hint}>
           <span>Tip: <kbd>Alt</kbd>+click any word to read from there</span>
-          {followOn && followPaused && isActive && (
+          {followOn && userScrolling && isActive && (
             <button className={styles.resumeFollow} onClick={jumpToActive}>
               Jump to reading position
             </button>
@@ -472,23 +563,41 @@ export function TTSReader({ html }: Props) {
       {showFloating && (
         <div className={styles.floating} role="region" aria-label="Now reading">
           <div className={styles.floatingInner}>
-            {!playing ? (
-              <button className={`${styles.iconBtn} ${styles.iconBtnPrimary}`} onClick={play} aria-label="Resume"><Play size={15} /></button>
+            {!isPlaying ? (
+              <button className={`${styles.iconBtn} ${styles.iconBtnPrimary}`} onClick={play} aria-label={isPaused ? "Resume" : "Play"}>
+                <Play size={15} />
+              </button>
             ) : (
-              <button className={`${styles.iconBtn} ${styles.iconBtnPrimary}`} onClick={pauseSpeech} aria-label="Pause"><Pause size={15} /></button>
+              <button className={`${styles.iconBtn} ${styles.iconBtnPrimary}`} onClick={pauseSpeech} aria-label="Pause">
+                <Pause size={15} />
+              </button>
             )}
-            <button className={`${styles.iconBtn} ${styles.iconBtnStop}`} onClick={stop} aria-label="Stop"><Square size={13} /></button>
+            <button className={`${styles.iconBtn} ${styles.iconBtnStop}`} onClick={stop} aria-label="Stop">
+              <Square size={13} />
+            </button>
             <div className={styles.floatingProgress}>
               <div className={styles.floatingFill} style={{ width: `${progressPct}%` }} />
             </div>
-            <select className={styles.floatingRate} value={rate} onChange={(e) => changeRate(parseFloat(e.target.value))} aria-label="Playback speed">
+            <select
+              className={styles.floatingRate}
+              value={rate}
+              onChange={(e) => changeRate(parseFloat(e.target.value))}
+              aria-label="Playback speed"
+            >
               {RATES.map((r) => <option key={r} value={r}>{r}×</option>)}
             </select>
-            <button className={`${styles.followBtn} ${followOn ? styles.followBtnOn : ""}`} onClick={() => setFollowOn((v) => !v)} aria-pressed={followOn} title={followOn ? "Follow on" : "Manual"}>
+            <button
+              className={`${styles.followBtn} ${followOn ? styles.followBtnOn : ""}`}
+              onClick={toggleFollow}
+              aria-pressed={followOn}
+              title={followOn ? "Follow on" : "Manual"}
+            >
               {followOn ? <Target size={13} /> : <MousePointer2 size={13} />}
             </button>
-            {followOn && followPaused && (
-              <button className={styles.jumpBtn} onClick={jumpToActive} title="Jump to reading position">Jump</button>
+            {followOn && userScrolling && (
+              <button className={styles.jumpBtn} onClick={jumpToActive} title="Jump to reading position">
+                Jump
+              </button>
             )}
           </div>
         </div>
