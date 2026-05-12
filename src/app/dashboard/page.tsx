@@ -8,7 +8,7 @@ import {
   PenLine, Eye, Heart, TrendingUp, Users,
   FileText, Clock, ArrowUpRight, Sparkles,
   Loader2, BarChart2, BookOpen,
-  Edit3, ExternalLink, MessageSquare
+  Edit3, ExternalLink, MessageSquare, History, Calendar
 } from "lucide-react";
 import { format } from "date-fns";
 import styles from "./dashboard.module.css";
@@ -261,10 +261,12 @@ export default function DashboardPage() {
               <h3 className={styles.panelTitle}>Quick Actions</h3>
             </div>
             <div className={styles.quickLinks}>
-              <Link href="/editor/new"       className={styles.quickLink}><PenLine size={14} />New Article</Link>
-              <Link href="/drafts"            className={styles.quickLink}><FileText size={14} />My Drafts</Link>
-              <Link href="/settings"          className={styles.quickLink}><Edit3 size={14} />Edit Profile</Link>
-              <Link href={`/profile/${handle}`} className={styles.quickLink}><ExternalLink size={14} />View Profile</Link>
+              <Link href="/editor/new"           className={styles.quickLink}><PenLine size={14} />New Article</Link>
+              <Link href="/drafts"               className={styles.quickLink}><FileText size={14} />My Drafts</Link>
+              <Link href="/drafts?tab=scheduled" className={styles.quickLink}><Calendar size={14} />Scheduled</Link>
+              <Link href="/recently-viewed"      className={styles.quickLink}><History size={14} />Recently Viewed</Link>
+              <Link href="/settings"             className={styles.quickLink}><Edit3 size={14} />Edit Profile</Link>
+              <Link href={`/profile/${handle}`}  className={styles.quickLink}><ExternalLink size={14} />View Profile</Link>
             </div>
           </div>
 

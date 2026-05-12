@@ -8,6 +8,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const filter = searchParams.get("filter") ?? "latest";
   const q = searchParams.get("q")?.trim() ?? "";
+  const cursor = searchParams.get("cursor") ?? null;
+  const take = 20;
 
   // Lazy-publish any scheduled posts whose time has arrived (cron-free approach)
   try {
@@ -35,7 +37,13 @@ export async function GET(req: NextRequest) {
     } : {}),
   };
 
-  const orderBy = filter === "top"
+  // "trending" = most liked in last 7 days; "top" = all-time most liked
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  if (filter === "trending" && !q) {
+    Object.assign(where, { createdAt: { gte: sevenDaysAgo } });
+  }
+
+  const orderBy = (filter === "top" || filter === "trending")
     ? { likes: { _count: "desc" as const } }
     : { createdAt: "desc" as const };
 
@@ -43,13 +51,19 @@ export async function GET(req: NextRequest) {
     const articles = await withRetry(() => prisma.article.findMany({
       where,
       orderBy,
-      take: 30,
+      take: take + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: {
         author: { select: { name: true, handle: true, image: true } },
         _count: { select: { likes: true } },
       },
     }));
-    return NextResponse.json(articles);
+
+    const hasMore = articles.length > take;
+    const items = hasMore ? articles.slice(0, take) : articles;
+    const nextCursor = hasMore ? items[items.length - 1].id : null;
+
+    return NextResponse.json({ articles: items, nextCursor, hasMore });
   } catch (err) {
     console.error("GET /api/articles error:", err);
     return NextResponse.json({ error: "Failed to fetch articles" }, { status: 500 });

@@ -515,7 +515,14 @@ export default function EditorPage() {
       {/* ── Top bar ──────────────────────────────────────────── */}
       <header className={styles.topBar}>
         <div className={styles.topLeft}>
-          <div className={styles.statusBadge} data-status={status}>
+          <div
+            className={styles.statusBadge}
+            data-status={
+              scheduleDate && new Date(scheduleDate).getTime() > Date.now() && status === "draft"
+                ? "scheduled"
+                : status
+            }
+          >
             {scheduleDate && new Date(scheduleDate).getTime() > Date.now() && status === "draft" ? (
               <><Calendar size={12} />Scheduled</>
             ) : status === "draft" ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, TrendingUp, Clock, Flame, Star, Heart, Bookmark, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -35,28 +35,54 @@ function ExploreContent() {
   const searchParams = useSearchParams();
   const initialQ = searchParams.get("q") ?? "";
 
-  const [activeTab, setActiveTab] = useState<Tab>("trending");
-  const [query,     setQuery]     = useState(initialQ);
-  const [articles,  setArticles]  = useState<Article[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
+  const [activeTab,  setActiveTab]  = useState<Tab>("trending");
+  const [query,      setQuery]      = useState(initialQ);
+  const [articles,   setArticles]   = useState<Article[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [loadingMore,setLoadingMore]= useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore,    setHasMore]    = useState(false);
+  const [bookmarks,  setBookmarks]  = useState<Set<string>>(new Set());
 
   useEffect(() => { setQuery(initialQ); }, [initialQ]);
 
+  const fetchArticles = useCallback(async (tab: Tab, q: string, cursor?: string) => {
+    const isFirstPage = !cursor;
+    if (isFirstPage) setLoading(true); else setLoadingMore(true);
+
+    const params = new URLSearchParams({ filter: tab });
+    if (q) params.set("q", q);
+    if (cursor) params.set("cursor", cursor);
+
+    try {
+      const res = await fetch(`/api/articles?${params}`);
+      const data = await res.json();
+      // Support both old array format and new paginated format
+      const items: Article[] = Array.isArray(data) ? data : (data.articles ?? []);
+      const next: string | null = data.nextCursor ?? null;
+      const more: boolean = data.hasMore ?? false;
+
+      if (isFirstPage) {
+        setArticles(items);
+      } else {
+        setArticles(prev => [...prev, ...items]);
+      }
+      setNextCursor(next);
+      setHasMore(more);
+    } catch {
+      if (isFirstPage) setArticles([]);
+    } finally {
+      if (isFirstPage) setLoading(false); else setLoadingMore(false);
+    }
+  }, []);
+
   useEffect(() => {
-    setLoading(true);
-    const params = new URLSearchParams({ filter: activeTab });
-    if (query) params.set("q", query);
-    fetch(`/api/articles?${params}`)
-      .then(r => r.json())
-      .then(data => setArticles(Array.isArray(data) ? data : []))
-      .catch(() => setArticles([]))
-      .finally(() => setLoading(false));
-  }, [activeTab, query]);
+    fetchArticles(activeTab, query);
+  }, [activeTab, query, fetchArticles]);
 
   async function toggleBookmark(articleId: string, slug: string) {
     const res = await fetch(`/api/bookmarks/${articleId}`, { method: "POST" });
-    if (res.status === 401) { return; }
+    if (res.status === 401) return;
     setBookmarks(prev => {
       const next = new Set(prev);
       next.has(slug) ? next.delete(slug) : next.add(slug);
@@ -116,50 +142,67 @@ function ExploreContent() {
                 <button className="btn btn-secondary btn-sm" onClick={() => setQuery("")}>Clear search</button>
               </div>
             ) : (
-              articles.map((a) => {
-                const tag = primaryTag(a);
-                const color = tagColor(tag);
-                return (
-                  <div key={a.slug} className={styles.articleCard}>
-                    <div className={styles.articleAccent} style={{ background: color }} />
-                    <div className={styles.articleBody}>
-                      <div className={styles.articleMeta}>
-                        <span className={styles.articleTag} style={{ color }}>{tag}</span>
-                        <span className={styles.articleDate}>
-                          {new Date(a.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                        </span>
-                      </div>
-                      <Link href={`/article/${a.slug}`} className={styles.articleTitleLink}>
-                        <h2 className={styles.articleTitle}>{a.title}</h2>
-                      </Link>
-                      {a.excerpt && <p className={styles.articleExcerpt}>{a.excerpt}</p>}
-                      <div className={styles.articleFooter}>
-                        <div className={styles.authorRow}>
-                          <div className="avatar avatar-sm" style={{ background: color, fontSize: "0.65rem" }}>
-                            {(a.author.name ?? a.author.handle)[0].toUpperCase()}
-                          </div>
-                          <Link href={`/profile/${a.author.handle}`} className={styles.authorName}>
-                            {a.author.name ?? a.author.handle}
-                          </Link>
-                          <span className={styles.sep}>·</span>
-                          <span className={styles.readTime}>{a.readTime} min read</span>
+              <>
+                {articles.map((a) => {
+                  const tag = primaryTag(a);
+                  const color = tagColor(tag);
+                  return (
+                    <div key={a.slug} className={styles.articleCard}>
+                      <div className={styles.articleAccent} style={{ background: color }} />
+                      <div className={styles.articleBody}>
+                        <div className={styles.articleMeta}>
+                          <span className={styles.articleTag} style={{ color }}>{tag}</span>
+                          <span className={styles.articleDate}>
+                            {new Date(a.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </span>
                         </div>
-                        <div className={styles.articleActions}>
-                          <span className={styles.likes}><Heart size={13} />{a._count.likes.toLocaleString()}</span>
-                          <button
-                            className={`${styles.bookmarkBtn} ${bookmarks.has(a.slug) ? styles.bookmarkActive : ""}`}
-                            onClick={() => toggleBookmark(a.id, a.slug)}
-                            aria-label={bookmarks.has(a.slug) ? "Remove bookmark" : "Bookmark"}
-                            aria-pressed={bookmarks.has(a.slug)}
-                          >
-                            <Bookmark size={14} fill={bookmarks.has(a.slug) ? "currentColor" : "none"} />
-                          </button>
+                        <Link href={`/article/${a.slug}`} className={styles.articleTitleLink}>
+                          <h2 className={styles.articleTitle}>{a.title}</h2>
+                        </Link>
+                        {a.excerpt && <p className={styles.articleExcerpt}>{a.excerpt}</p>}
+                        <div className={styles.articleFooter}>
+                          <div className={styles.authorRow}>
+                            <div className="avatar avatar-sm" style={{ background: color, fontSize: "0.65rem" }}>
+                              {(a.author.name ?? a.author.handle)[0].toUpperCase()}
+                            </div>
+                            <Link href={`/profile/${a.author.handle}`} className={styles.authorName}>
+                              {a.author.name ?? a.author.handle}
+                            </Link>
+                            <span className={styles.sep}>·</span>
+                            <span className={styles.readTime}>{a.readTime} min read</span>
+                          </div>
+                          <div className={styles.articleActions}>
+                            <span className={styles.likes}><Heart size={13} />{a._count.likes.toLocaleString()}</span>
+                            <button
+                              className={`${styles.bookmarkBtn} ${bookmarks.has(a.slug) ? styles.bookmarkActive : ""}`}
+                              onClick={() => toggleBookmark(a.id, a.slug)}
+                              aria-label={bookmarks.has(a.slug) ? "Remove bookmark" : "Bookmark"}
+                              aria-pressed={bookmarks.has(a.slug)}
+                            >
+                              <Bookmark size={14} fill={bookmarks.has(a.slug) ? "currentColor" : "none"} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
+                  );
+                })}
+
+                {hasMore && (
+                  <div style={{ display: "flex", justifyContent: "center", padding: "1.5rem 0" }}>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => fetchArticles(activeTab, query, nextCursor ?? undefined)}
+                      disabled={loadingMore}
+                    >
+                      {loadingMore
+                        ? <><Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> Loading…</>
+                        : "Load more articles"
+                      }
+                    </button>
                   </div>
-                );
-              })
+                )}
+              </>
             )}
           </div>
 

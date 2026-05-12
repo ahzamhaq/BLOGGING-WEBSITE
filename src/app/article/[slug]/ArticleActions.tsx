@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Heart, Bookmark, MessageCircle, Share2 } from "lucide-react";
@@ -17,17 +17,40 @@ interface Props {
 }
 
 export function ArticleActions({ articleId, slug, title, likes, commentsCount = 0 }: Props) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   const [liked,      setLiked]      = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [likeCount,  setLikeCount]  = useState(likes);
   const [pending,    setPending]    = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   const articleUrl = typeof window !== "undefined"
     ? `${window.location.origin}/article/${slug}`
     : `/article/${slug}`;
+
+  // Load initial liked/bookmarked state once session is known
+  useEffect(() => {
+    if (status === "loading") return;
+    if (initialized) return;
+    setInitialized(true);
+    if (!session) return;
+
+    // Fetch both in parallel
+    Promise.all([
+      fetch(`/api/likes/${articleId}`).then(r => r.ok ? r.json() : null),
+      fetch(`/api/bookmarks/${articleId}`).then(r => r.ok ? r.json() : null),
+    ]).then(([likeData, bookmarkData]) => {
+      if (likeData) {
+        setLiked(likeData.liked);
+        setLikeCount(likeData.count);
+      }
+      if (bookmarkData) {
+        setBookmarked(bookmarkData.bookmarked);
+      }
+    }).catch(() => {});
+  }, [status, session, articleId, initialized]);
 
   function requireAuth(action: () => void) {
     if (!session) {
@@ -47,6 +70,9 @@ export function ArticleActions({ articleId, slug, title, likes, commentsCount = 
       try {
         const res = await fetch(`/api/likes/${articleId}`, { method: "POST" });
         if (!res.ok) throw new Error();
+        const data = await res.json();
+        setLiked(data.liked);
+        setLikeCount(data.count);
       } catch {
         setLiked(wasLiked);
         setLikeCount(c => wasLiked ? c + 1 : c - 1);
@@ -67,7 +93,9 @@ export function ArticleActions({ articleId, slug, title, likes, commentsCount = 
       try {
         const res = await fetch(`/api/bookmarks/${articleId}`, { method: "POST" });
         if (!res.ok) throw new Error();
-        toast.success(wasBookmarked ? "Removed from reading list" : "Saved to reading list!");
+        const data = await res.json();
+        setBookmarked(data.bookmarked);
+        toast.success(data.bookmarked ? "Saved to reading list!" : "Removed from reading list");
       } catch {
         setBookmarked(wasBookmarked);
         toast.error("Failed to update bookmark");
@@ -93,7 +121,7 @@ export function ArticleActions({ articleId, slug, title, likes, commentsCount = 
 
       <button
         className={styles.likeBtn}
-        aria-label="Comments"
+        aria-label="Jump to comments"
         onClick={() => document.getElementById("comments")?.scrollIntoView({ behavior: "smooth" })}
       >
         <MessageCircle size={20} />
