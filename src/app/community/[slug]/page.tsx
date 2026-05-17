@@ -3,6 +3,7 @@
 import { useState, use, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { notFound, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   MessageSquare, Send, Users, TrendingUp, Pin, ThumbsUp,
   ChevronDown, Hash, Lock, Clock, Eye, Shield, Crown,
@@ -67,6 +68,9 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
   const [joining, setJoining]     = useState(false);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [threadReplies, setThreadReplies] = useState<Record<string, { id: string; body: string; createdAt: string; author: Author }[]>>({});
+  const [loadingReplies, setLoadingReplies] = useState<Set<string>>(new Set());
+  const { data: session } = useSession();
 
   const fetchRoom = useCallback(async () => {
     try {
@@ -141,6 +145,20 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
     }
   }
 
+  async function fetchReplies(threadId: string) {
+    if (threadReplies[threadId]) return; // already loaded
+    setLoadingReplies(prev => new Set(prev).add(threadId));
+    try {
+      const res = await fetch(`/api/community/${slug}/threads/${threadId}/replies`);
+      const data = await res.json();
+      setThreadReplies(prev => ({ ...prev, [threadId]: Array.isArray(data) ? data : [] }));
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingReplies(prev => { const n = new Set(prev); n.delete(threadId); return n; });
+    }
+  }
+
   async function handleReply(threadId: string) {
     const text = replies[threadId]?.trim();
     if (!text) return;
@@ -150,11 +168,15 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
       body: JSON.stringify({ body: text }),
     });
     if (res.status === 401) { toast.error("Sign in to reply"); return; }
+    const newReply = await res.json();
     setThreads(prev => prev.map(t =>
       t.id === threadId ? { ...t, _count: { ...t._count, replies: t._count.replies + 1 } } : t
     ));
+    setThreadReplies(prev => ({
+      ...prev,
+      [threadId]: [...(prev[threadId] ?? []), newReply],
+    }));
     setReplies(prev => ({ ...prev, [threadId]: "" }));
-    setReplyingTo(null);
     toast.success("Reply posted!");
   }
 
@@ -189,6 +211,10 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
     toast.success("Community deleted");
     router.push("/community");
   }
+
+  const currentUserId = session?.user?.id;
+  const myMembership = room?.members.find(m => m.user.id === currentUserId);
+  const isMod = myMembership?.role === "owner" || myMembership?.role === "moderator";
 
   const visibleThreads = activeTag
     ? threads.filter(t => t.tag === activeTag)
@@ -250,9 +276,11 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
                 }
               </button>
             )}
-            <button className="btn btn-secondary btn-sm" onClick={() => setShowAdmin(v => !v)}>
-              <Settings size={13} />Admin
-            </button>
+            {isMod && (
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowAdmin(v => !v)}>
+                <Settings size={13} />Admin
+              </button>
+            )}
           </div>
         </div>
 
@@ -363,33 +391,55 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
                     <button
                       className={styles.actionBtn}
                       onClick={() => {
+                        const isOpening = !expanded.has(t.id);
                         setExpanded(prev => { const n = new Set(prev); n.has(t.id) ? n.delete(t.id) : n.add(t.id); return n; });
-                        setReplyingTo(r => r === t.id ? null : t.id);
+                        if (isOpening) fetchReplies(t.id);
                       }}
                     >
-                      <MessageSquare size={14} />{t._count.replies} replies
+                      <MessageSquare size={14} />{t._count.replies} {t._count.replies === 1 ? "reply" : "replies"}
                       <ChevronDown size={12} style={{ transform: expanded.has(t.id) ? "rotate(180deg)" : "", transition: "transform 0.2s" }} />
                     </button>
-                    <button
-                      className={`${styles.actionBtn} ${t.pinned ? styles.actionBtnActive : styles.actionBtnAdmin}`}
-                      title={t.pinned ? "Unpin thread" : "Pin thread"}
-                      onClick={() => handlePin(t.id)}
-                    >
-                      <Pin size={13} />
-                    </button>
+                    {isMod && (
+                      <button
+                        className={`${styles.actionBtn} ${t.pinned ? styles.actionBtnActive : styles.actionBtnAdmin}`}
+                        title={t.pinned ? "Unpin thread" : "Pin thread"}
+                        onClick={() => handlePin(t.id)}
+                      >
+                        <Pin size={13} />
+                      </button>
+                    )}
                   </div>
-                  {replyingTo === t.id && (
-                    <div className={styles.replyBox}>
-                      <input
-                        className={styles.replyInput}
-                        placeholder="Write a reply…"
-                        aria-label="Reply"
-                        value={replies[t.id] ?? ""}
-                        onChange={(e) => setReplies((prev) => ({ ...prev, [t.id]: e.target.value }))}
-                        onKeyDown={(e) => { if (e.key === "Enter") handleReply(t.id); }}
-                        autoFocus
-                      />
-                      <button className="btn btn-secondary btn-sm" onClick={() => handleReply(t.id)}>Reply</button>
+                  {expanded.has(t.id) && (
+                    <div className={styles.repliesList}>
+                      {loadingReplies.has(t.id) ? (
+                        <div style={{ padding: "0.75rem", opacity: 0.5, fontSize: "0.82rem" }}>Loading replies…</div>
+                      ) : (threadReplies[t.id] ?? []).length === 0 ? (
+                        <div style={{ padding: "0.75rem", opacity: 0.4, fontSize: "0.82rem" }}>No replies yet.</div>
+                      ) : (
+                        (threadReplies[t.id] ?? []).map(r => (
+                          <div key={r.id} className={styles.replyItem}>
+                            <div className="avatar avatar-xs" style={{ background: room.color, fontSize: "0.55rem", flexShrink: 0 }}>
+                              {(r.author.name ?? r.author.handle)[0].toUpperCase()}
+                            </div>
+                            <div className={styles.replyContent}>
+                              <span className={styles.replyAuthor}>{r.author.name ?? r.author.handle}</span>
+                              <span className={styles.replyTime}>{timeAgo(r.createdAt)}</span>
+                              <p className={styles.replyBody}>{r.body}</p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      <div className={styles.replyBox}>
+                        <input
+                          className={styles.replyInput}
+                          placeholder="Write a reply…"
+                          aria-label="Reply"
+                          value={replies[t.id] ?? ""}
+                          onChange={(e) => setReplies((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleReply(t.id); }}
+                        />
+                        <button className="btn btn-secondary btn-sm" onClick={() => handleReply(t.id)}>Reply</button>
+                      </div>
                     </div>
                   )}
                 </div>
