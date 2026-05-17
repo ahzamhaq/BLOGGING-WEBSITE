@@ -5,12 +5,15 @@ import { Pool } from "pg";
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 function createPrismaClient() {
-  // Strip pgbouncer/connection_limit params — pg driver doesn't understand them
-  const rawUrl = process.env.DATABASE_URL ?? "";
-  const url = new URL(rawUrl);
-  url.searchParams.delete("pgbouncer");
-  url.searchParams.delete("connection_limit");
-  const connectionString = url.toString();
+  // Prefer DIRECT_URL (port 5432) — pg driver adapter doesn't use pgbouncer
+  // Fall back to DATABASE_URL with pgbouncer params stripped
+  let connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? "";
+  if (!process.env.DIRECT_URL && connectionString) {
+    const url = new URL(connectionString);
+    url.searchParams.delete("pgbouncer");
+    url.searchParams.delete("connection_limit");
+    connectionString = url.toString();
+  }
 
   const pool = new Pool({ connectionString });
   const adapter = new PrismaPg(pool);
