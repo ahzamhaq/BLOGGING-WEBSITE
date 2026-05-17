@@ -5,9 +5,14 @@ import { Pool } from "pg";
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 function createPrismaClient() {
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-  });
+  // Strip pgbouncer/connection_limit params — pg driver doesn't understand them
+  const rawUrl = process.env.DATABASE_URL ?? "";
+  const url = new URL(rawUrl);
+  url.searchParams.delete("pgbouncer");
+  url.searchParams.delete("connection_limit");
+  const connectionString = url.toString();
+
+  const pool = new Pool({ connectionString });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({
     adapter,
