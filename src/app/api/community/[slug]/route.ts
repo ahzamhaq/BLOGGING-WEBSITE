@@ -27,20 +27,23 @@ export async function GET(_req: NextRequest, { params }: Params) {
     });
     if (!community) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    // Private rooms: only members can see threads
-    if (community.type === "private") {
-      const session = await auth();
-      const isMember = session?.user?.id
-        ? community.members.some(m => m.user.id === session.user!.id)
-        : false;
-
-      if (!isMember) {
-        // Return community metadata but strip threads
-        return NextResponse.json({ ...community, threads: [], locked: true });
-      }
+    // Look up the caller's own membership separately, so it doesn't depend on
+    // whether they happen to fall inside the truncated 10-member sidebar list.
+    const session = await auth();
+    let myMembership: { role: string } | null = null;
+    if (session?.user?.id) {
+      myMembership = await prisma.communityMember.findUnique({
+        where: { communityId_userId: { communityId: community.id, userId: session.user.id } },
+        select: { role: true },
+      });
     }
 
-    return NextResponse.json(community);
+    // Private rooms: only members can see threads
+    if (community.type === "private" && !myMembership) {
+      return NextResponse.json({ ...community, threads: [], myMembership: null, locked: true });
+    }
+
+    return NextResponse.json({ ...community, myMembership });
   } catch {
     return NextResponse.json({ error: "Failed to fetch community" }, { status: 500 });
   }

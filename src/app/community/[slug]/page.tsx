@@ -3,7 +3,6 @@
 import { useState, use, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { notFound, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import {
   MessageSquare, Send, Users, TrendingUp, Pin, ThumbsUp,
   ChevronDown, Hash, Lock, Clock, Eye, Shield, Crown,
@@ -31,6 +30,7 @@ interface CommunityData {
   members: MemberData[];
   threads: ThreadData[];
   locked?: boolean;
+  myMembership: { role: MemberRole } | null;
 }
 
 function RoleBadge({ role }: { role: MemberRole }) {
@@ -71,7 +71,6 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
   const [showAdmin, setShowAdmin] = useState(false);
   const [threadReplies, setThreadReplies] = useState<Record<string, { id: string; body: string; createdAt: string; author: Author }[]>>({});
   const [loadingReplies, setLoadingReplies] = useState<Set<string>>(new Set());
-  const { data: session } = useSession();
 
   const fetchRoom = useCallback(async () => {
     try {
@@ -80,6 +79,7 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
       const data: CommunityData = await res.json();
       setRoom(data);
       setThreads(data.threads);
+      setJoined(!!data.myMembership);
       const counts: Record<string, number> = {};
       data.threads.forEach(t => { counts[t.id] = t._count.threadLikes; });
       setLikeCounts(counts);
@@ -213,9 +213,10 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
     router.push("/community");
   }
 
-  const currentUserId = session?.user?.id;
-  const myMembership = room?.members.find(m => m.user.id === currentUserId);
-  const isMod = myMembership?.role === "owner" || myMembership?.role === "moderator";
+  // Use the API-provided myMembership (accurate regardless of the truncated
+  // sidebar members list) rather than scanning room.members.
+  const myRole = room?.myMembership?.role ?? null;
+  const isMod = myRole === "owner" || myRole === "moderator";
 
   const visibleThreads = activeTag
     ? threads.filter(t => t.tag === activeTag)
