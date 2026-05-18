@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
+import { assertCanParticipate } from "@/lib/community-access";
 
 interface Params { params: Promise<{ slug: string }> }
 
@@ -14,16 +15,16 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Title and body required" }, { status: 400 });
   }
 
-  try {
-    const community = await prisma.community.findUnique({ where: { slug } });
-    if (!community) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const access = await assertCanParticipate(slug, session.user.id);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
+  try {
     const thread = await prisma.communityThread.create({
       data: {
         title: title.trim(),
         body: body.trim(),
         tag: tag ?? "discussion",
-        communityId: community.id,
+        communityId: access.community.id,
         authorId: session.user.id,
       },
       include: {

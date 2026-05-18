@@ -22,7 +22,9 @@ export async function POST(_req: NextRequest, { params }: Params) {
     }
 
     const thread = await prisma.communityThread.findUnique({ where: { id: threadId } });
-    if (!thread) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!thread || thread.communityId !== community.id) {
+      return NextResponse.json({ error: "Thread not found in this community" }, { status: 404 });
+    }
 
     const updated = await prisma.communityThread.update({
       where: { id: threadId },
