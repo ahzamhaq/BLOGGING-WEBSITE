@@ -3,6 +3,11 @@ import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/db";
 
+// Minimum gap between successive reset requests for the same user, to stop
+// email-flood abuse and DB row bloat. Users can still request another link
+// after this window if the previous one was lost.
+const RESET_COOLDOWN_MS = 60_000;
+
 export async function POST(req: Request) {
   try {
     const { email: rawEmail } = await req.json();
@@ -15,6 +20,21 @@ export async function POST(req: Request) {
 
     // Always respond OK to prevent email enumeration
     if (!user || !user.password) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // Silent rate limit: if we issued a token in the last 60s, no-op and
+    // still return ok so the caller can't distinguish "throttled" from
+    // "address unknown" — also doesn't punish a user who legitimately
+    // clicked twice.
+    const recent = await prisma.passwordResetToken.findFirst({
+      where: {
+        userId: user.id,
+        createdAt: { gte: new Date(Date.now() - RESET_COOLDOWN_MS) },
+      },
+      select: { id: true },
+    });
+    if (recent) {
       return NextResponse.json({ ok: true });
     }
 
