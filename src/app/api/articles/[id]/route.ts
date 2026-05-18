@@ -17,6 +17,16 @@ export async function GET(
       },
     });
     if (!article) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    // Only the author can read an unpublished article (draft or scheduled).
+    // Returning 404 (not 403) avoids leaking the existence of someone else's draft.
+    if (!article.published) {
+      const session = await auth();
+      if (!session?.user?.id || session.user.id !== article.authorId) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+    }
+
     return NextResponse.json(article);
   } catch (error) {
     console.error("GET /api/articles/[id] error:", error);
