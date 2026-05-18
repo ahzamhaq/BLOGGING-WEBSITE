@@ -26,6 +26,20 @@ export async function GET(_req: NextRequest, { params }: Params) {
       },
     });
     if (!community) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    // Private rooms: only members can see threads
+    if (community.type === "private") {
+      const session = await auth();
+      const isMember = session?.user?.id
+        ? community.members.some(m => m.user.id === session.user!.id)
+        : false;
+
+      if (!isMember) {
+        // Return community metadata but strip threads
+        return NextResponse.json({ ...community, threads: [], locked: true });
+      }
+    }
+
     return NextResponse.json(community);
   } catch {
     return NextResponse.json({ error: "Failed to fetch community" }, { status: 500 });

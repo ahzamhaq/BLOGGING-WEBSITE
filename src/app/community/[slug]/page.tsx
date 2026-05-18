@@ -30,6 +30,7 @@ interface CommunityData {
   _count: { members: number; threads: number };
   members: MemberData[];
   threads: ThreadData[];
+  locked?: boolean;
 }
 
 function RoleBadge({ role }: { role: MemberRole }) {
@@ -327,8 +328,17 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
       <div className={styles.container}>
         <div className={styles.grid}>
           <main>
-            {/* New post form */}
-            <form className={styles.newPost} onSubmit={handlePost}>
+            {/* Private room wall */}
+            {room.locked && (
+              <div className={styles.lockedWall}>
+                <Lock size={36} className={styles.lockedIcon} />
+                <h2 className={styles.lockedTitle}>Private Room</h2>
+                <p className={styles.lockedDesc}>This room is invite-only. Only approved members can view threads and participate.</p>
+              </div>
+            )}
+
+            {/* New post form — only for members */}
+            {!room.locked && <form className={styles.newPost} onSubmit={handlePost}>
               <div className="avatar avatar-sm" style={{ background: "#64748b", fontSize: "0.65rem", flexShrink: 0 }}>Y</div>
               <div className={styles.newPostFields}>
                 <input
@@ -351,10 +361,10 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
                   </button>
                 </div>
               </div>
-            </form>
+            </form>}
 
-            {/* Threads */}
-            <div className={styles.threads}>
+            {/* Threads — hidden for non-members in private rooms */}
+            {!room.locked && <div className={styles.threads}>
               {visibleThreads.length === 0 && (
                 <div style={{ textAlign: "center", padding: "3rem", opacity: 0.5 }}>
                   <Flame size={32} style={{ margin: "0 auto 0.5rem" }} />
@@ -444,7 +454,7 @@ export default function CommunityRoomPage({ params }: { params: Promise<{ slug: 
                   )}
                 </div>
               ))}
-            </div>
+            </div>}
           </main>
 
           <aside className={styles.sidebar}>

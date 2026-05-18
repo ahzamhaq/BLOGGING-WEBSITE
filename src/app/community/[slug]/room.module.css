@@ -189,6 +189,23 @@
 .replyInput:focus { border-color: var(--brand-500); }
 .replyInput::placeholder { color: var(--text-muted); }
 
+/* ── Locked wall ─────────────────────────────────────────────────── */
+.lockedWall {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 4rem 2rem;
+  gap: 0.75rem;
+  background: var(--bg-surface);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 16px;
+  margin-bottom: 1rem;
+}
+.lockedIcon { color: #f87171; opacity: 0.7; }
+.lockedTitle { font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin: 0; }
+.lockedDesc { font-size: 0.9rem; color: var(--text-muted); max-width: 36ch; margin: 0; line-height: 1.6; }
+
 /* ── Replies list ────────────────────────────────────────────────── */
 .repliesList {
   margin-top: 0.75rem;
