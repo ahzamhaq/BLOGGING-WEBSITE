@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import slugify from "slugify";
+import { sanitizeArticleHtml, stripHtml } from "@/lib/sanitize";
+
+const MAX_CONTENT_BYTES = 500_000;
 
 export async function GET(
   req: NextRequest,
@@ -76,7 +79,20 @@ export async function PUT(
       slug = conflict ? `${base}-${Date.now()}` : base;
     }
 
-    const plainText = ((content ?? existing.content) ?? "").replace(/<[^>]*>/g, "");
+    // Sanitize HTML content on update; if the client did not send `content`,
+    // keep the existing stored value (which is already sanitized from prior writes
+    // once this fix has shipped — older entries are sanitized lazily on next save).
+    let safeContent: string;
+    if (content !== undefined) {
+      const rawContent = typeof content === "string" ? content : "";
+      if (Buffer.byteLength(rawContent, "utf8") > MAX_CONTENT_BYTES) {
+        return NextResponse.json({ error: "Article content too large" }, { status: 413 });
+      }
+      safeContent = sanitizeArticleHtml(rawContent);
+    } else {
+      safeContent = existing.content;
+    }
+    const plainText = stripHtml(safeContent);
     const readTime = Math.max(1, Math.ceil(plainText.split(/\s+/).filter(Boolean).length / 200));
 
     // If scheduling in the future, force unpublished until the schedule fires
@@ -88,7 +104,7 @@ export async function PUT(
       data: {
         title:      title      ?? existing.title,
         subtitle:   subtitle   !== undefined ? (subtitle ?? null) : existing.subtitle,
-        content:    content    ?? existing.content,
+        content:    safeContent,
         tags:       Array.isArray(tags) ? tags : existing.tags,
         coverImage: coverImage !== undefined ? (coverImage ?? null) : existing.coverImage,
         published:  finalPublished,

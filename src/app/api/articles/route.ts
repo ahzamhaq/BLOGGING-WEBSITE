@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma, withRetry } from "@/lib/db";
 import { auth } from "@/auth";
 import slugify from "slugify";
+import { sanitizeArticleHtml, stripHtml } from "@/lib/sanitize";
+
+// Maximum stored HTML size (500 KB) — guards against payload DoS
+const MAX_CONTENT_BYTES = 500_000;
 
 // GET /api/articles — list published articles with optional filter/search
 export async function GET(req: NextRequest) {
@@ -120,7 +124,13 @@ export async function POST(req: NextRequest) {
     });
     const slug = existing.length === 0 ? base : `${base}-${Date.now()}`;
 
-    const plainText = (content ?? "").replace(/<[^>]*>/g, "");
+    // Sanitize HTML content server-side before storing (prevents stored XSS).
+    const rawContent = typeof content === "string" ? content : "";
+    if (Buffer.byteLength(rawContent, "utf8") > MAX_CONTENT_BYTES) {
+      return NextResponse.json({ error: "Article content too large" }, { status: 413 });
+    }
+    const safeContent = sanitizeArticleHtml(rawContent);
+    const plainText = stripHtml(safeContent);
     const readTime = Math.max(1, Math.ceil(plainText.split(/\s+/).filter(Boolean).length / 200));
 
     // Scheduled posts are stored as unpublished until the schedule fires
@@ -131,7 +141,7 @@ export async function POST(req: NextRequest) {
       data: {
         title:      title.trim(),
         subtitle:   subtitle?.trim()   ?? null,
-        content:    content            ?? "",
+        content:    safeContent,
         tags:       Array.isArray(tags) ? tags : [],
         coverImage: coverImage         ?? null,
         published:  finalPublished,
