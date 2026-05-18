@@ -3,6 +3,7 @@ import { prisma, withRetry } from "@/lib/db";
 import { auth } from "@/auth";
 import slugify from "slugify";
 import { sanitizeArticleHtml, stripHtml } from "@/lib/sanitize";
+import { notify } from "@/lib/notify";
 
 // Maximum stored HTML size (500 KB) — guards against payload DoS
 const MAX_CONTENT_BYTES = 500_000;
@@ -153,6 +154,25 @@ export async function POST(req: NextRequest) {
         excerpt:    plainText.slice(0, 200) || null,
       },
     });
+
+    // Notify the parent author when a reply-as-post is *published* (drafts
+    // and scheduled posts don't notify yet — they'll be handled when they
+    // flip to published via PUT).
+    if (parentArticleId && finalPublished) {
+      const parent = await prisma.article.findUnique({
+        where: { id: parentArticleId },
+        select: { authorId: true, title: true },
+      });
+      if (parent) {
+        await notify({
+          recipientId: parent.authorId,
+          actorId:     authorId,
+          type:        "reply",
+          message:     `${user.name ?? user.handle} replied to "${parent.title}" with a post`,
+          link:        `/article/${article.slug}`,
+        });
+      }
+    }
 
     return NextResponse.json(article, { status: 201 });
   } catch (error) {

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import slugify from "slugify";
 import { sanitizeArticleHtml, stripHtml } from "@/lib/sanitize";
+import { notify } from "@/lib/notify";
 
 const MAX_CONTENT_BYTES = 500_000;
 
@@ -114,6 +115,29 @@ export async function PUT(
         excerpt:    plainText.slice(0, 200) || existing.excerpt,
       },
     });
+
+    // Notify parent author when a reply-as-post transitions from draft to
+    // published. (The initial POST already notifies for the direct-publish
+    // case; this handles "save as draft → publish later".)
+    if (
+      existing.parentArticleId &&
+      !existing.published &&
+      finalPublished
+    ) {
+      const parent = await prisma.article.findUnique({
+        where: { id: existing.parentArticleId },
+        select: { authorId: true, title: true },
+      });
+      if (parent) {
+        await notify({
+          recipientId: parent.authorId,
+          actorId:     session.user.id,
+          type:        "reply",
+          message:     `${session.user.name ?? "Someone"} replied to "${parent.title}" with a post`,
+          link:        `/article/${updated.slug}`,
+        });
+      }
+    }
 
     return NextResponse.json(updated);
   } catch (error) {

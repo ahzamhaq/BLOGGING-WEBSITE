@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { notify } from "@/lib/notify";
 
 // GET /api/comments/[articleId]
 export async function GET(
@@ -39,6 +40,41 @@ export async function POST(
     data: { body: body.trim(), authorId: session.user.id, articleId, parentId: parentId ?? null },
     include: { author: { select: { id: true, name: true, handle: true, image: true } } },
   });
+
+  // Best-effort notifications. Top-level comment → notify article author.
+  // Nested reply → notify the parent comment's author (article author already
+  // got a notification when the top-level comment was posted).
+  const article = await prisma.article.findUnique({
+    where: { id: articleId },
+    select: { authorId: true, title: true, slug: true },
+  });
+  if (article) {
+    const actorName = session.user.name ?? "Someone";
+    const link = `/article/${article.slug}`;
+    if (parentId) {
+      const parentComment = await prisma.comment.findUnique({
+        where: { id: parentId },
+        select: { authorId: true },
+      });
+      if (parentComment) {
+        await notify({
+          recipientId: parentComment.authorId,
+          actorId:     session.user.id,
+          type:        "reply",
+          message:     `${actorName} replied to your comment on "${article.title}"`,
+          link,
+        });
+      }
+    } else {
+      await notify({
+        recipientId: article.authorId,
+        actorId:     session.user.id,
+        type:        "comment",
+        message:     `${actorName} commented on "${article.title}"`,
+        link,
+      });
+    }
+  }
 
   return NextResponse.json(comment, { status: 201 });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { cleanMessage } from "@/lib/notify";
 
 // GET /api/notifications
 export async function GET() {
@@ -13,7 +14,10 @@ export async function GET() {
     take:    30,
   });
 
-  return NextResponse.json(notifications);
+  // Strip internal dedupe suffix before returning to the client.
+  return NextResponse.json(
+    notifications.map(n => ({ ...n, message: cleanMessage(n.message) })),
+  );
 }
 
 // PATCH /api/notifications — mark all as read
