@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { notify } from "@/lib/notify";
 
+const MAX_COMMENT_LENGTH = 5000;
+
 // GET /api/comments/[articleId]
 export async function GET(
   _req: NextRequest,
@@ -34,46 +36,63 @@ export async function POST(
   const { articleId } = await params;
   const { body, parentId } = await req.json() as { body: string; parentId?: string };
 
-  if (!body?.trim()) return NextResponse.json({ error: "Empty comment" }, { status: 400 });
+  const trimmed = body?.trim() ?? "";
+  if (!trimmed) return NextResponse.json({ error: "Empty comment" }, { status: 400 });
+  if (trimmed.length > MAX_COMMENT_LENGTH) {
+    return NextResponse.json(
+      { error: `Comment must be ${MAX_COMMENT_LENGTH} characters or fewer.` },
+      { status: 400 },
+    );
+  }
+
+  // Verify the article exists (avoid FK error and give a clean 404).
+  const article = await prisma.article.findUnique({
+    where: { id: articleId },
+    select: { authorId: true, title: true, slug: true, published: true },
+  });
+  if (!article || !article.published) {
+    return NextResponse.json({ error: "Article not found" }, { status: 404 });
+  }
+
+  // If replying to another comment, the parent must exist and belong to the
+  // same article. Otherwise an attacker could pass any comment's id as
+  // parentId and attach a reply under a different article's thread.
+  let parentAuthorId: string | null = null;
+  if (parentId) {
+    const parent = await prisma.comment.findUnique({
+      where: { id: parentId },
+      select: { id: true, articleId: true, authorId: true },
+    });
+    if (!parent || parent.articleId !== articleId) {
+      return NextResponse.json({ error: "Parent comment not found" }, { status: 404 });
+    }
+    parentAuthorId = parent.authorId;
+  }
 
   const comment = await prisma.comment.create({
-    data: { body: body.trim(), authorId: session.user.id, articleId, parentId: parentId ?? null },
+    data: { body: trimmed, authorId: session.user.id, articleId, parentId: parentId ?? null },
     include: { author: { select: { id: true, name: true, handle: true, image: true } } },
   });
 
-  // Best-effort notifications. Top-level comment → notify article author.
-  // Nested reply → notify the parent comment's author (article author already
-  // got a notification when the top-level comment was posted).
-  const article = await prisma.article.findUnique({
-    where: { id: articleId },
-    select: { authorId: true, title: true, slug: true },
-  });
-  if (article) {
-    const actorName = session.user.name ?? "Someone";
-    const link = `/article/${article.slug}`;
-    if (parentId) {
-      const parentComment = await prisma.comment.findUnique({
-        where: { id: parentId },
-        select: { authorId: true },
-      });
-      if (parentComment) {
-        await notify({
-          recipientId: parentComment.authorId,
-          actorId:     session.user.id,
-          type:        "reply",
-          message:     `${actorName} replied to your comment on "${article.title}"`,
-          link,
-        });
-      }
-    } else {
-      await notify({
-        recipientId: article.authorId,
-        actorId:     session.user.id,
-        type:        "comment",
-        message:     `${actorName} commented on "${article.title}"`,
-        link,
-      });
-    }
+  // Best-effort notifications using the values we already loaded above.
+  const actorName = session.user.name ?? "Someone";
+  const link = `/article/${article.slug}`;
+  if (parentAuthorId) {
+    await notify({
+      recipientId: parentAuthorId,
+      actorId:     session.user.id,
+      type:        "reply",
+      message:     `${actorName} replied to your comment on "${article.title}"`,
+      link,
+    });
+  } else {
+    await notify({
+      recipientId: article.authorId,
+      actorId:     session.user.id,
+      type:        "comment",
+      message:     `${actorName} commented on "${article.title}"`,
+      link,
+    });
   }
 
   return NextResponse.json(comment, { status: 201 });
