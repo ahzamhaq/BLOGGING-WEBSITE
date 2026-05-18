@@ -110,5 +110,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   session: { strategy: "jwt" },
-  secret: process.env.AUTH_SECRET ?? "dev-secret-change-in-production",
+  secret: (() => {
+    const fromEnv = process.env.AUTH_SECRET;
+    if (fromEnv && fromEnv.length >= 32) return fromEnv;
+    // In production, refuse to boot with a missing or weak secret —
+    // a publicly-known fallback would let anyone forge JWTs.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "AUTH_SECRET is missing or too short (require >= 32 chars). " +
+        "Set it in the deployment environment.",
+      );
+    }
+    // Dev only: use a fixed dev-only string so local sessions persist
+    // across restarts. Never use this value in production.
+    return "dev-only-secret-not-for-production-use-12345678";
+  })(),
 });
