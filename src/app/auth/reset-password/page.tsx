@@ -78,7 +78,7 @@ function ResetForm() {
                     id="rp-password"
                     type={showPass ? "text" : "password"}
                     className={styles.input}
-                    placeholder="At least 6 characters"
+                    placeholder="At least 8 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required

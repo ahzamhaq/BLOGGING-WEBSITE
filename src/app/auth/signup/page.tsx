@@ -99,7 +99,7 @@ export default function SignUpPage() {
 
           <div className={styles.field}>
             <label htmlFor="signup-password" className={styles.label}>
-              Password <span className={styles.hint}>(min. 6 characters)</span>
+              Password <span className={styles.hint}>(min. 8 characters)</span>
             </label>
             <div className={styles.inputWrapper}>
               <Lock size={16} className={styles.inputIcon} />
