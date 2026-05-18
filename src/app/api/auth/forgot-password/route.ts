@@ -5,10 +5,11 @@ import { prisma } from "@/lib/db";
 
 export async function POST(req: Request) {
   try {
-    const { email } = await req.json();
-    if (!email?.trim()) {
+    const { email: rawEmail } = await req.json();
+    if (!rawEmail?.trim()) {
       return NextResponse.json({ error: "Email is required." }, { status: 400 });
     }
+    const email = rawEmail.trim().toLowerCase();
 
     const user = await prisma.user.findUnique({ where: { email } });
 

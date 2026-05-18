@@ -19,7 +19,7 @@ export default function SignUpPage() {
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()  || !email.trim() || !password.trim()) { toast.error("Please fill all fields."); return; }
-    if (password.length < 6) { toast.error("Password must be at least 6 characters."); return; }
+    if (password.length < 8) { toast.error("Password must be at least 8 characters."); return; }
 
     setLoading(true);
     try {
@@ -54,7 +54,7 @@ export default function SignUpPage() {
     await signIn("google", { callbackUrl: "/" });
   }
 
-  const strength = password.length === 0 ? null : password.length < 6 ? "weak" : password.length < 10 ? "good" : "strong";
+  const strength = password.length === 0 ? null : password.length < 8 ? "weak" : password.length < 12 ? "good" : "strong";
 
   return (
     <div className={styles.page}>
@@ -105,7 +105,7 @@ export default function SignUpPage() {
               <Lock size={16} className={styles.inputIcon} />
               <input id="signup-password" type={showPass ? "text" : "password"} className={styles.input}
                 placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)}
-                autoComplete="new-password" required minLength={6} disabled={loading} />
+                autoComplete="new-password" required minLength={8} disabled={loading} />
               <button type="button" className={styles.togglePass} onClick={() => setShowPass((v) => !v)}
                 aria-label={showPass ? "Hide" : "Show"}>
                 {showPass ? <EyeOff size={15} /> : <Eye size={15} />}

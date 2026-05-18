@@ -31,8 +31,11 @@ export async function POST(req: Request) {
 
     // Forgot-password token flow
     const { token, password } = body;
-    if (!token || !password || password.length < 6) {
+    if (!token) {
       return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    }
+    if (!password || password.length < 8) {
+      return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
     }
     const record = await prisma.passwordResetToken.findUnique({ where: { token } });
     if (!record || record.used || record.expiresAt < new Date()) {

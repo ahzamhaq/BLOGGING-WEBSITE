@@ -21,7 +21,7 @@ function ResetForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token)              { toast.error("Invalid reset link.");           return; }
-    if (password.length < 6) { toast.error("Password must be at least 6 characters."); return; }
+    if (password.length < 8) { toast.error("Password must be at least 8 characters."); return; }
     if (password !== confirm) { toast.error("Passwords do not match.");       return; }
 
     setLoading(true);

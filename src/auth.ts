@@ -16,10 +16,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const email    = credentials?.email    as string | undefined;
+        const rawEmail = credentials?.email    as string | undefined;
         const password = credentials?.password as string | undefined;
 
-        if (!email || !password || password.length < 6) return null;
+        // Normalize email to lowercase to match registration. Accept the old
+        // 6-char minimum for legacy users while requiring 8+ for new ones —
+        // we just need *some* sane floor against trivial brute-force here.
+        if (!rawEmail || !password || password.length < 6) return null;
+        const email = rawEmail.trim().toLowerCase();
 
         try {
           const user = await prisma.user.findUnique({ where: { email } });
